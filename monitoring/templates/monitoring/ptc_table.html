@@ -1,397 +1,603 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8"/>
     <title>Monitoring PTC</title>
-    <!DOCTYPE html>
-    <html lang="ru">
-    <head>
-        <meta charset="UTF-8">
-        <title>Monitoring PTC</title>
-        <style>
-            body {
-                font-family: Arial, sans-serif;
-                margin: 0;
-                height: 100vh;
-                overflow: hidden;
-                background-color: #f5f5f5;
-            }
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #f5f5f5;
+        }
+        #sidebar {
+            width: 220px;
+            background-color: #e9e9e9;
+            color: #111;
+            padding: 15px;
+            box-sizing: border-box;
+            transition: transform 0.3s ease;
+            overflow-y: auto;
+            position: fixed;
+            top: 50px;
+            left: 0;
+            height: calc(100vh - 50px);
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+        }
+        #sidebar.hidden {
+            transform: translateX(-220px);
+        }
+        #main {
+            margin-left: 0;
+            padding: 50px 10px 20px 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            transition:
+                margin-left 0.3s ease,
+                width 0.3s ease;
+        }
+        #main.shifted {
+            margin-left: 220px;
+            width: calc(100% - 220px);
+        }
+        #table-container {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: auto;
+            max-height: calc(100vh - 140px);
+            position: relative;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            background-color: white;
+        }
+        thead {
+            background-color: #696969;
+            color: white;
+        }
+        th {
+            padding: 1px 1px;
+            height: 1px;
+            font-weight: bold;
+            font-size: 17px;
+            border: 1px solid #ccc;
+            line-height: 1.2;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        td {
+            padding: 1px 1px;
+            height: 1px;
+            font-size: 15px;
+            border: 1px solid #ccc;
+            line-height: 1;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        td a {
+            display: inline-block;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        #ptc-table thead th {
+            position: sticky;
+            top: 0;
+            background-color: #696969;
+            z-index: 2;
+        }
+        #ptc-table thead tr:nth-child(2) th {
+            position: sticky;
+            top: 21.1px;
+            background-color: #696969;
+            z-index: 1;
+        }
+        tr:nth-child(even) {
+            background-color: #f0f0f0;
+        }
+        .hidden-col {
+            display: none;
+        }
+        a {
+            color: #663399;
+            text-decoration: none;
+        }
+        td[data-col="ptc"] a,
+        td[data-col="address"] a {
+            text-decoration: underline;
+        }
+        td[data-col="ptc"] a {
+            font-size: 18px;
+            font-weight: bold;
+        }
+        td[data-col="address"],
+        th[data-col="address"] {
+            text-align: left;
+            padding-left: 6px;
+        }
+        #toggle-button {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: linear-gradient(90deg, #0066cc, #0099ff);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            font-size: 15px;
+            cursor: pointer;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+            transition: background 0.3s ease;
+        }
+        #toggle-button:hover {
+            background: linear-gradient(90deg, #005bb5, #0088e0);
+        }
+        .filter-group {
+            margin-bottom: 2px;
+        }
+        .group-header {
+            font-weight: bold;
+            cursor: pointer;
+            background-color: #ccc;
+            padding: 5px 10px;
+            border-radius: 4px;
+            user-select: none;
+        }
+        .group-header:hover {
+            background-color: #bbb;
+        }
+        .group-body {
+            padding-left: 10px;
+            margin-top: 5px;
+        }
+        .group-body.collapsed {
+            display: none;
+        }
+        td[data-col="sursa"] span,
+        td[data-col="pompa"] span {
+            font-size: 34px;
+            vertical-align: middle;
+            line-height: 1;
+        }
+        .hidden-col {
+            display: none;
+        }
+        col.hidden-col {
+            display: none !important;
+            width: 0 !important;
+        }
+        .filter-group .group-body label {
+            display: block;
+            margin-bottom: 5px;
+            line-height: 1.2;
+        }
 
-            #sidebar {
-                width: 220px;
-                background-color: #e9e9e9;
-                color: #111;
-                padding: 15px;
-                box-sizing: border-box;
-                transition: transform 0.3s ease;
-                overflow-y: auto;
-                position: fixed;
-                top: 50px;
-                left: 0;
-                height: calc(100vh - 50px);
-                box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-            }
+        /* Квадрат/круг для помпы */
+        .pump-shape {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            margin: 2px;
+            vertical-align: middle;
+            cursor: pointer;
+            transition: border-radius 0.2s, background 0.15s;
+            font-size: 30px;
+            line-height: 1;
+            text-align: center;
+        }
+        .pump-rect {
+            border-radius: 6px;
+        }
+        .pump-circle {
+            border-radius: 50%;
+        }
 
-            #sidebar.hidden {
-                transform: translateX(-220px);
-            }
+        #ptc-total {
+            font-weight: bold;
+            font-size: 22px;
+            margin-top: 16px;
+            margin-left: 4px;
+            position: absolute;
+            left: 0;
+            bottom: 6px;
+            z-index: 3;
+            color: #222;
+        }
 
-            #main {
-                margin-left: 0;
-                padding: 50px 10px 20px 0;
-                overflow: hidden;
-                display: flex;
-                flex-direction: column;
-                width: 100%;
-                transition: margin-left 0.3s ease, width 0.3s ease;
-            }
+    </style>
+</head>
+<body>
+<button id="toggle-button" onclick="toggleSidebar()">Filtru</button>
+<input
+        type="text"
+        id="search-input"
+        placeholder="Caută PTC..."
+        style="
+            position: fixed;
+            top: 10px;
+            right: 20px;
+            z-index: 1000;
+            padding: 6px;
+            width: 220px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        "
+/>
 
-            #main.shifted {
-                margin-left: 220px;
-                width: calc(100% - 220px);
-            }
-
-            #table-container {
-                flex: 1;
-                overflow-y: auto;
-                overflow-x: auto;
-                max-height: calc(100vh - 140px);
-                position: relative;
-            }
-
-            table {
-                width: 100%;
-                border-collapse: collapse;
-                table-layout: fixed;
-                background-color: white;
-            }
-
-            thead {
-                background-color: #696969;
-                color: white;
-            }
-
-            th, td {
-                padding: 4px 2px;
-                font-size: 15px;
-                border: 1px solid #ccc;
-                line-height: 1.0;
-                text-align: center;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
-
-            th {
-                font-weight: bold;
-                font-size: 17px;
-            }
-
-            td a {
-                display: inline-block;
-                max-width: 100%;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-            }
-
-            td[data-col="ptc"], th[data-col="ptc"] {
-                width: 70px;
-                max-width: 70px;
-                font-size: 16px;
-            }
-
-            td[data-col="address"], th[data-col="address"] {
-                width: 190px;
-                max-width: 190px;
-                text-align: left;
-            }
-
-            td[data-col="time"], th[data-col="time"] {
-                width: 110px;
-                max-width: 110px;
-            }
-
-            td[data-col="t1"], th[data-col="t1"],
-            td[data-col="t2"], th[data-col="t2"],
-            td[data-col="g1"], th[data-col="g1"],
-            td[data-col="g2"], th[data-col="g2"],
-            td[data-col="q"], th[data-col="q"],
-            td[data-col="dg"], th[data-col="dg"],
-            td[data-col="dg_pct"], th[data-col="dg_pct"],
-            td[data-col="gacm"], th[data-col="gacm"],
-            td[data-col="tacm"], th[data-col="tacm"],
-            td[data-col="g_adaos"], th[data-col="g_adaos"] {
-                width: 50px;
-                max-width: 50px;
-            }
-
-            td[data-col="dg_pct"], th[data-col="dg_pct"] {
-                width: 60px;
-                max-width: 60px;
-            }
-
-            td[data-col="v220"], th[data-col="v220"],
-            td[data-col="pump"], th[data-col="pump"] {
-                width: 30px;
-                max-width: 30px;
-            }
-
-            td[data-col="t31"], th[data-col="t31"],
-            td[data-col="t32"], th[data-col="t32"],
-            td[data-col="t41"], th[data-col="t41"],
-            td[data-col="t42"], th[data-col="t42"],
-            td[data-col="t43"], th[data-col="t43"],
-            td[data-col="t44"], th[data-col="t44"] {
-                width: 40px !important;
-                max-width: 40px !important;
-            }
-
-            #ptc-table thead th {
-                position: sticky;
-                top: 0;
-                background-color: #696969;
-                z-index: 2;
-            }
-
-            tr:nth-child(even) {
-                background-color: #F0F0F0;
-            }
-
-            .hidden-col {
-                display: none;
-            }
-
-            a {
-                color: #663399;
-                text-decoration: none;
-            }
-
-            td[data-col="ptc"] a,
-            td[data-col="address"] a {
-                text-decoration: underline;
-            }
-
-            td[data-col="ptc"] a {
-                font-size: 18px;
-                font-weight: bold;
-            }
-
-            #toggle-button {
-                position: fixed;
-                top: 10px;
-                left: 10px;
-                z-index: 1000;
-                background: linear-gradient(90deg, #0066cc, #0099ff);
-                color: white;
-                border: none;
-                padding: 10px 16px;
-                font-size: 15px;
-                cursor: pointer;
-                border-radius: 8px;
-                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
-                transition: background 0.3s ease;
-            }
-
-            #toggle-button:hover {
-                background: linear-gradient(90deg, #005bb5, #0088e0);
-            }
-        </style>
-
-
-    </head>
-    <body>
-
-    <button id="toggle-button" onclick="toggleSidebar()">Filtru</button>
-    <input type="text" id="search-input" placeholder="Caută PTC..."
-           style="position:fixed; top:10px; right:20px; z-index:1000; padding:6px; width:220px; border-radius:4px; border:1px solid #ccc;">
-
-    <div id="sidebar" class="hidden">
-        <h3>Selectare</h3>
-        <label><input type="checkbox" value="t1" checked> T1</label>
-        <label><input type="checkbox" value="t2" checked> T2</label>
-        <label><input type="checkbox" value="t31" checked> T31</label>
-        <label><input type="checkbox" value="t32" checked> T32</label>
-        <label><input type="checkbox" value="t41" checked> T41</label>
-        <label><input type="checkbox" value="t42" checked> T42</label>
-        <label><input type="checkbox" value="t43" checked> T43</label>
-        <label><input type="checkbox" value="t44" checked> T44</label>
-        <label><input type="checkbox" value="g1" checked> G1</label>
-        <label><input type="checkbox" value="g2" checked> G2</label>
-        <label><input type="checkbox" value="q" checked> Q</label>
-        <label><input type="checkbox" value="dg" checked> dG</label>
-        <label><input type="checkbox" value="dg_pct" checked> Δ%</label>
-        <label><input type="checkbox" value="gacm" checked> Gacm</label>
-        <label><input type="checkbox" value="tacm" checked> Tacm</label>
-        <label><input type="checkbox" value="g_adaos" checked> Gadaos</label>
-        <label><input type="checkbox" value="v220" checked> 220V</label>
-        <label><input type="checkbox" value="pump" checked> Pompa</label>
-        <label><input type="checkbox" value="time" checked> Data/Ora</label>
+<div id="sidebar" class="hidden">
+    <h3>Selectare</h3>
+    <div class="filter-group">
+        <div class="group-header" onclick="toggleGroup(this)">
+            Temperaturi ▸
+        </div>
+        <div class="group-body collapsed">
+            <label><input type="checkbox" value="t1" checked/> T1</label>
+            <label><input type="checkbox" value="t2" checked/> T2</label>
+            <label><input type="checkbox" value="t31" checked/> T31</label>
+            <label><input type="checkbox" value="t32" checked/> T32</label>
+            <label><input type="checkbox" value="t41" checked/> T41</label>
+            <label><input type="checkbox" value="t42" checked/> T42</label>
+            <label><input type="checkbox" value="t43" checked/> T43</label>
+            <label><input type="checkbox" value="t44" checked/> T44</label>
+        </div>
     </div>
+    <div class="filter-group">
+        <div class="group-header" onclick="toggleGroup(this)">Debite ▸</div>
+        <div class="group-body collapsed">
+            <label><input type="checkbox" value="g1" checked/> G1</label>
+            <label><input type="checkbox" value="g2" checked/> G2</label>
+            <label><input type="checkbox" value="gacm" checked/> Gacm</label>
+            <label><input type="checkbox" value="g_adaos" checked/> Gadaos</label>
+        </div>
+    </div>
+    <div class="filter-group">
+        <div class="group-header" onclick="toggleGroup(this)">
+            Parametri ▸
+        </div>
+        <div class="group-body collapsed">
+            <label><input type="checkbox" value="q" checked/> Q</label>
+            <label><input type="checkbox" value="dg" checked/> dG</label>
+            <label><input type="checkbox" value="dt" checked/> dT</label>
+            <label><input type="checkbox" value="dg_pct" checked/> Δ%</label>
+            <label><input type="checkbox" value="tacm" checked/> Tacm</label>
+        </div>
+    </div>
+    <div class="filter-group">
+        <div class="group-header" onclick="toggleGroup(this)">Stare ▸</div>
+        <div class="group-body collapsed">
+            <label><input type="checkbox" value="sursa" checked/> 220V</label>
+            <label><input type="checkbox" value="pompa" checked/> Pompa</label>
+            <label><input type="checkbox" value="time" checked/> Data/Ora</label>
+        </div>
+    </div>
+</div>
 
-    <div id="main">
-        <div id="table-container">
-            <table id="ptc-table">
-                <colgroup>
-                    <col data-col="ptc" style="width: 70px">
-                    <col data-col="address" style="width: 190px">
-                    <col data-col="t1" style="width: 50px">
-                    <col data-col="t2" style="width: 50px">
-                    <col data-col="t31" style="width: 40px">
-                    <col data-col="t32" style="width: 40px">
-                    <col data-col="t41" style="width: 40px">
-                    <col data-col="t42" style="width: 40px">
-                    <col data-col="t43" style="width: 40px">
-                    <col data-col="t44" style="width: 40px">
-                    <col data-col="g1" style="width: 50px">
-                    <col data-col="g2" style="width: 50px">
-                    <col data-col="q" style="width: 50px">
-                    <col data-col="dg" style="width: 50px">
-                    <col data-col="dg_pct" style="width: 60px">
-                    <col data-col="gacm" style="width: 50px">
-                    <col data-col="tacm" style="width: 50px">
-                    <col data-col="g_adaos" style="width: 50px">
-                    <col data-col="v220" style="width: 30px">
-                    <col data-col="pump" style="width: 30px">
-                    <col data-col="time" style="width: 110px">
-                </colgroup>
-                <thead>
+<div id="main">
+    <div id="table-container">
+        <table id="ptc-table">
+            <colgroup>
+                <col data-col="ptc" style="width: 30px"/>
+                <col data-col="address" style="width: 90px"/>
+                <col data-col="q" style="width: 25px"/>
+                <col data-col="g1" style="width: 25px"/>
+                <col data-col="g2" style="width: 25px"/>
+                <col data-col="dg" style="width: 25px"/>
+                <col data-col="dg_pct" style="width: 25px"/>
+                <col data-col="t1" style="width: 25px"/>
+                <col data-col="t2" style="width: 25px"/>
+                <col data-col="dt" style="width: 25px"/>
+                <col data-col="t31" style="width: 25px"/>
+                <col data-col="t32" style="width: 25px"/>
+                <col data-col="t41" style="width: 25px"/>
+                <col data-col="t42" style="width: 25px"/>
+                <col data-col="t43" style="width: 25px"/>
+                <col data-col="t44" style="width: 25px"/>
+                <col data-col="tacm" style="width: 25px"/>
+                <col data-col="gacm" style="width: 25px"/>
+                <col data-col="g_adaos" style="width: 30px"/>
+                <col data-col="sursa" style="width: 30px"/>
+                <col data-col="pompa" style="width: 43px"/>
+                <col data-col="time" style="width: 60px"/>
+            </colgroup>
+            <thead>
                 <tr>
                     <th rowspan="2" data-col="ptc">PTC</th>
                     <th rowspan="2" data-col="address">Adresa</th>
-                    <th rowspan="2" data-col="t1">T1</th>
-                    <th rowspan="2" data-col="t2">T2</th>
-                    <th colspan="2">T3</th>
-                    <th colspan="4">T4</th>
+                    <th rowspan="2" data-col="q">Q</th>
                     <th rowspan="2" data-col="g1">G1</th>
                     <th rowspan="2" data-col="g2">G2</th>
-                    <th rowspan="2" data-col="q">Q</th>
                     <th rowspan="2" data-col="dg">dG</th>
                     <th rowspan="2" data-col="dg_pct">Δ%</th>
-                    <th rowspan="2" data-col="gacm">Gacm</th>
+                    <th rowspan="2" data-col="t1">T1</th>
+                    <th rowspan="2" data-col="t2">T2</th>
+                    <th rowspan="2" data-col="dt">dT</th>
+                    <th colspan="2" data-col-group="t3group">T3</th>
+                    <th colspan="4" data-col-group="t4group">T4</th>
                     <th rowspan="2" data-col="tacm">Tacm</th>
+                    <th rowspan="2" data-col="gacm">Gacm</th>
                     <th rowspan="2" data-col="g_adaos">Gadaos</th>
-                    <th rowspan="2" data-col="v220">220V</th>
-                    <th rowspan="2" data-col="pump">Pompa</th>
+                    <th rowspan="2" data-col="sursa">220V</th>
+                    <th rowspan="2" data-col="pompa">Pompa</th>
                     <th rowspan="2" data-col="time">Data/Ora</th>
                 </tr>
                 <tr>
-                    <th data-col="t31">T31</th>
-                    <th data-col="t32">T32</th>
-                    <th data-col="t41">T41</th>
-                    <th data-col="t42">T42</th>
-                    <th data-col="t43">T43</th>
-                    <th data-col="t44">T44</th>
+                    <th data-col="t31" data-col-parent="t3group">T31</th>
+                    <th data-col="t32" data-col-parent="t3group">T32</th>
+                    <th data-col="t41" data-col-parent="t4group">T41</th>
+                    <th data-col="t42" data-col-parent="t4group">T42</th>
+                    <th data-col="t43" data-col-parent="t4group">T43</th>
+                    <th data-col="t44" data-col-parent="t4group">T44</th>
                 </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-
-        </div>
+            </thead>
+            <tbody></tbody>
+        </table>
     </div>
+    <div id="ptc-total"></div>
+</div>
 
-    <script>
-        function toggleSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            const main = document.getElementById('main');
-            sidebar.classList.toggle('hidden');
-            main.classList.toggle('shifted');
-        }
+<audio id="alarmSound" src="/static/sonor.wav" loop></audio>
 
-        function updateColumnVisibility() {
-            const checkboxes = document.querySelectorAll('#sidebar input[type="checkbox"]');
-            const visibleCols = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.value);
+<!-- Укажи реальный путь к твоему звуку тревоги, например /static/alarm.mp3 -->
 
-            document.querySelectorAll('#ptc-table th, #ptc-table td').forEach(cell => {
-                const col = cell.getAttribute('data-col');
-                if (col && col !== 'ptc' && col !== 'address') {
-                    cell.classList.add('hidden-col');
-                }
-            });
+<script>
+    function toggleSidebar() {
+        const sidebar = document.getElementById("sidebar");
+        const main = document.getElementById("main");
+        sidebar.classList.toggle("hidden");
+        main.classList.toggle("shifted");
+    }
 
-            visibleCols.forEach(col => {
-                document.querySelectorAll(`[data-col="${col}"]`).forEach(cell => {
-                    cell.classList.remove('hidden-col');
-                });
-            });
-        }
+    function updateColumnVisibility() {
+        const checkedCols = Array.from(
+            document.querySelectorAll('#sidebar input[type="checkbox"]'),
+        )
+            .filter((cb) => cb.checked)
+            .map((cb) => cb.value);
 
-        async function loadData() {
-            const response = await fetch('/api/ptc/');
-            const data = await response.json();
-
-            const tbody = document.querySelector('#ptc-table tbody');
-            tbody.innerHTML = '';
-
-            data.forEach(row => {
-                const tr = document.createElement('tr');
-
-                let cls = '';
-                const t1 = parseFloat(row.t1);
-                const dg_pct = parseFloat(row.dg_pct);
-                if (t1 > 95 || dg_pct > 10) {
-                    cls = 'error';
-                } else if (t1 < 65 || dg_pct < -10) {
-                    cls = 'warn';
+        document
+            .querySelectorAll("#ptc-table col[data-col]")
+            .forEach((colEl) => {
+                const col = colEl.getAttribute("data-col");
+                if (
+                    col === "ptc" ||
+                    col === "address" ||
+                    checkedCols.includes(col)
+                ) {
+                    colEl.style.display = "";
                 } else {
-                    cls = 'good';
+                    colEl.style.display = "none";
                 }
-                tr.className = cls;
-
-                tr.innerHTML = `
-        <td data-col="ptc">
-            <a href="http://10.1.1.174/view/view_page.php?title=${row.ptc}" target="_blank">
-                ${row.ptc}
-            </a>
-        </td>
-        <td data-col="address">
-            <a href="http://10.1.1.248:2222/?obiect=${row.ptc}" target="_blank">
-                ${row.address}
-            </a>
-        </td>
-        <td data-col="t1">${row.id_t1 ? `<a href="${row.id_t1}" target="_blank">${row.t1}</a>` : row.t1}</td>
-        <td data-col="t2">${row.id_t2 ? `<a href="${row.id_t2}" target="_blank">${row.t2}</a>` : row.t2}</td>
-        <td data-col="t31">${row.t31 !== undefined && row.t31 !== null ? row.t31 : ''}</td>
-        <td data-col="t32">${row.t32 !== undefined && row.t32 !== null ? row.t32 : ''}</td>
-        <td data-col="t41">${row.t41 !== undefined && row.t41 !== null ? row.t41 : ''}</td>
-        <td data-col="t42">${row.t42 !== undefined && row.t42 !== null ? row.t42 : ''}</td>
-        <td data-col="t43">${row.t43 !== undefined && row.t43 !== null ? row.t43 : ''}</td>
-        <td data-col="t44">${row.t44 !== undefined && row.t44 !== null ? row.t44 : ''}</td>
-
-        <td data-col="g1">${row.id_g1 ? `<a href="${row.id_g1}" target="_blank">${row.g1}</a>` : row.g1}</td>
-        <td data-col="g2">${row.id_g2 ? `<a href="${row.id_g2}" target="_blank">${row.g2}</a>` : row.g2}</td>
-        <td data-col="q">${row.id_q1 ? `<a href="${row.id_q1}" target="_blank">${row.q1}</a>` : row.q1}</td>
-        <td data-col="dg">${row.id_dg ? `<a href="${row.id_dg}" target="_blank">${row.dg}</a>` : row.dg}</td>
-        <td data-col="dg_pct">${row.dg_pct}</td>
-        <td data-col="gacm">${row.id_gacm ? `<a href="${row.id_gacm}" target="_blank">${row.gacm}</a>` : row.gacm}</td>
-        <td data-col="tacm">${row.id_tacm ? `<a href="${row.id_tacm}" target="_blank">${row.tacm}</a>` : row.tacm}</td>
-        <td data-col="g_adaos">${row.id_g_adaos ? `<a href="${row.id_g_adaos}" target="_blank">${row.g_adaos}</a>` : row.g_adaos}</td>
-        <td data-col="v220"><span style="color: ${row.v220 ? 'green' : 'red'};">●</span></td>
-        <td data-col="pump"><span style="color: ${row.pump ? 'green' : 'red'};">●</span></td>
-        <td data-col="time">${row.time}</td>
-    `;
-                tbody.appendChild(tr);
             });
 
-            updateColumnVisibility();
+        document
+            .querySelectorAll(
+                "#ptc-table th[data-col], #ptc-table td[data-col]",
+            )
+            .forEach((cell) => {
+                const col = cell.getAttribute("data-col");
+                if (
+                    col === "ptc" ||
+                    col === "address" ||
+                    checkedCols.includes(col)
+                ) {
+                    cell.style.display = "";
+                } else {
+                    cell.style.display = "none";
+                }
+            });
+
+        const t3Cols = ["t31", "t32"];
+        const t3VisibleCols = t3Cols.filter((col) =>
+            checkedCols.includes(col),
+        );
+        document
+            .querySelectorAll('#ptc-table th[data-col-group="t3group"]')
+            .forEach((th) => {
+                if (t3VisibleCols.length === 0) {
+                    th.style.display = "none";
+                } else {
+                    th.style.display = "";
+                    th.colSpan = t3VisibleCols.length;
+                }
+            });
+
+        const t4Cols = ["t41", "t42", "t43", "t44"];
+        const t4VisibleCols = t4Cols.filter((col) =>
+            checkedCols.includes(col),
+        );
+        document
+            .querySelectorAll('#ptc-table th[data-col-group="t4group"]')
+            .forEach((th) => {
+                if (t4VisibleCols.length === 0) {
+                    th.style.display = "none";
+                } else {
+                    th.style.display = "";
+                    th.colSpan = t4VisibleCols.length;
+                }
+            });
+    }
+
+    async function loadData() {
+    const response = await fetch("/api/ptc/");
+    const data = await response.json();
+
+    const tbody = document.querySelector("#ptc-table tbody");
+    tbody.innerHTML = "";
+
+    data.forEach((row) => {
+        const tr = document.createElement("tr");
+        let cls = "";
+        const t1 = parseFloat(row.t1);
+        const dg_pct = parseFloat(row.dg_pct);
+        if (t1 > 95 || dg_pct > 10) {
+            cls = "error";
+        } else if (t1 < 65 || dg_pct < -10) {
+            cls = "warn";
+        } else {
+            cls = "good";
+        }
+        tr.className = cls;
+
+        tr.innerHTML = `
+<td data-col="ptc">
+    <a href="http://10.1.1.174/view/view_page.php?title=${row.ptc}" 	target="_blank">${row.ptc}</a>
+</td>
+<td data-col="address">
+    <a href="http://10.1.1.248:2222/?obiect=${row.ptc}" target="_blank">	${row.address}</a>
+</td>
+<td data-col="q">${row.id_q1 ? `<a href="${row.id_q1}" target="_blank">	${row.q1}</a>` : row.q1}
+</td>
+<td data-col="g1">${row.id_g1 ? `<a href="${row.id_g1}" target="_blank">	${row.g1}</a>` : row.g1}
+</td>
+<td data-col="g2">${row.id_g2 ? `<a href="${row.id_g2}" target="_blank">	${row.g2}</a>` : row.g2}
+</td>
+<td data-col="dg">${row.id_dg ? `<a href="${row.id_dg}" target="_blank">	${row.dg}</a>` : row.dg}
+</td>
+<td data-col="dg_pct">${row.dg_pct}</td>
+<td data-col="t1">${row.id_t1 ? `<a href="${row.id_t1}" target="_blank">${row.t1}</a>` : row.t1}</td>
+<td data-col="t2">${row.id_t2 ? `<a href="${row.id_t2}" target="_blank">${row.t2}</a>` : row.t2}</td>
+<td data-col="dt">${row.id_dt ? `<a href="${row.id_dt}" target="_blank">${row.dt}</a>` : row.dt}</td>
+<td data-col="t31"><a href="http://10.1.1.248:1111/?param_rokura=t31&obiect=PT_${row.ptc}" target="_blank">${row.t31}</a></td>
+<td data-col="t32"><a href="http://10.1.1.248:1111/?param_rokura=t32&obiect=PT_${row.ptc}" target="_blank">${row.t32}</a></td>
+<td data-col="t41"><a href="http://10.1.1.248:1111/?param_rokura=t41&obiect=PT_${row.ptc}" target="_blank">${row.t41}</a></td>
+<td data-col="t42"><a href="http://10.1.1.248:1111/?param_rokura=t42&obiect=PT_${row.ptc}" target="_blank">${row.t42}</a></td>
+<td data-col="t43"><a href="http://10.1.1.248:1111/?param_rokura=t43&obiect=PT_${row.ptc}" target="_blank">${row.t43}</a></td>
+<td data-col="t44"><a href="http://10.1.1.248:1111/?param_rokura=t44&obiect=PT_${row.ptc}" target="_blank">${row.t44}</a></td>
+<td data-col="tacm">${row.id_tacm ? `<a href="${row.id_tacm}" target="_blank">${row.tacm}</a>` : row.tacm}</td>
+<td data-col="gacm">${row.id_gacm ? `<a href="${row.id_gacm}" target="_blank">${row.gacm}</a>` : row.gacm}</td>
+<td data-col="g_adaos">${row.id_g_adaos ? `<a href="${row.id_g_adaos}" target="_blank">${row.g_adaos}</a>` : row.g_adaos}</td>
+<td data-col="sursa">
+    ${row.id_sursa ? `<a href="${row.id_sursa}" target="_blank"><span style="color: ${row.sursa ? "green" : "red"};">●</span></a>` : `<span style="color: ${row.sursa ? "green" : "red"};">●</span>`}
+</td>
+<td data-col="pompa">
+    ${
+        (row.pompa && Array.isArray(row.pompa)) ?
+    row.pompa.map((val, idx) => {
+        const pompaNum = row.pompa_nums && row.pompa_nums[idx];
+        let url = "";
+        if (pompaNum === 1) url = row.id_pompa1;
+        else if (pompaNum === 2) url = row.id_pompa2;
+        else if (pompaNum === 3) url = row.id_pompa3;
+
+        let color = "gray";
+        let lcs = row.lcs || 0;
+        const LCS_NORM = 30;
+
+        if (lcs < LCS_NORM) {
+            color = "yellow";
+        } else {
+            if (val > 200) color = "red";
+            else if (val > 0) color = "green";
+            else color = "gray";
         }
 
-        document.querySelectorAll('#sidebar input[type="checkbox"]').forEach(cb => {
-            cb.addEventListener('change', updateColumnVisibility);
-        });
+        return url
+            ? `<a href="${url}" target="_blank"><span class="pump-shape pump-rect" data-pump-id="${row.ptc}_${pompaNum}" style="color:${color};">&#9632;</span></a>`
+            : `<span class="pump-shape pump-rect" data-pump-id="${row.ptc}_${pompaNum}" style="color:${color};">&#9632;</span>`;
+        }).join("") : ""
 
-        window.onload = () => {
-            loadData();
-            setInterval(loadData, 30000);
+    }
+</td>
+<td data-col="time">${row.time}</td>
+`;
+
+
+        tbody.appendChild(tr);
+    });
+
+    setPumpShapeEvents();
+    updateColumnVisibility();
+
+    // Добавляем количество объектов
+    updatePTCTotal(data.length);
+}
+
+// Функция для TOTAL
+function updatePTCTotal(count) {
+    document.getElementById("ptc-total").innerHTML = `<b>TOTAL: ${count} obiecte</b>`;
+}
+
+
+    function setPumpShapeEvents() {
+    document.querySelectorAll('.pump-shape').forEach(el => {
+        el.oncontextmenu = null;
+    });
+
+    document.querySelectorAll('.pump-shape').forEach(function(el) {
+        el.oncontextmenu = function(e) {
+            e.preventDefault();
+            const sound = document.getElementById('alarmSound');
+            // Получаем текущий цвет
+            const color = el.style.color;
+
+            if (el.classList.contains('pump-rect')) {
+                el.classList.remove('pump-rect');
+                el.classList.add('pump-circle');
+                el.innerHTML = "&#9679;";
+
+                // Играет звук только если красный
+                if (color === 'red' || color === 'rgb(255, 0, 0)') {
+                    sound.currentTime = 0;
+                    sound.play();
+                }
+            } else {
+                el.classList.remove('pump-circle');
+                el.classList.add('pump-rect');
+                el.innerHTML = "&#9632;";
+                sound.pause();
+                sound.currentTime = 0;
+            }
+            return false;
         };
+    });
+}
 
-        document.getElementById('search-input').addEventListener('input', function () {
-            const term = this.value.toLowerCase();
-            document.querySelectorAll('#ptc-table tbody tr').forEach(row => {
-                const ptc = row.querySelector('[data-col="ptc"]').textContent.toLowerCase();
-                row.style.display = ptc.includes(term) ? '' : 'none';
-            });
+
+    document
+        .querySelectorAll('#sidebar input[type="checkbox"]')
+        .forEach((cb) => {
+            cb.addEventListener("change", updateColumnVisibility);
         });
-    </script>
-    </body>
-    </html>
+
+    window.onload = () => {
+        loadData();
+        setInterval(loadData, 30000);
+    };
+
+    document
+        .getElementById("search-input")
+        .addEventListener("input", function () {
+            const term = this.value.toLowerCase();
+            document
+                .querySelectorAll("#ptc-table tbody tr")
+                .forEach((row) => {
+                    const ptc = row
+                        .querySelector('[data-col="ptc"]')
+                        .textContent.toLowerCase();
+                    row.style.display = ptc.includes(term) ? "" : "none";
+                });
+        });
+
+    function toggleGroup(header) {
+        const body = header.nextElementSibling;
+        const isCollapsed = body.classList.toggle("collapsed");
+        header.textContent = header.textContent.replace(
+            /[▾▸]/,
+            isCollapsed ? "▸" : "▾",
+        );
+    }
+</script>
+
+</body>
+</html>
