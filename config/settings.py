@@ -14,7 +14,7 @@ SECRET_KEY = os.getenv("SECRET_KEY", "default-key")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",")
+ALLOWED_HOSTS = ['10.3.1.15', 'localhost', '127.0.0.1']
 
 # Application definition
 
@@ -119,10 +119,14 @@ SQL_SERVER = {
 }
 
 LOVATI_SERVER = {
-    'DRIVER': 'ODBC Driver 17 for SQL Server',
+    'DRIVER': '{ODBC Driver 17 for SQL Server}',
     'SERVER': '10.1.1.248',
     'DATABASE': 'LOVATI',
     'UID': 'disp',
     'PWD': 'disp123',
     'Trusted_Connection': 'no',
 }
+
+LOVATI_UID_COLUMNS_PRIORITY = [
+    "id_lovati", "deveui", "dev_eui", "device_uid", "serial", "imei", "uid"
+]

@@ -1,595 +1,1022 @@
 <!doctype html>
 <html lang="ru">
-  <head>
-    <meta charset="UTF-8" />
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <title>Monitoring PTC</title>
+
     <style>
-      body {
-        font-family: Arial, sans-serif;
-        margin: 0;
-        height: 100vh;
-        overflow: hidden;
-        background-color: #f5f5f5;
-      }
-      #sidebar {
-        width: 220px;
-        background-color: #e9e9e9;
-        color: #111;
-        padding: 15px;
-        box-sizing: border-box;
-        transition: transform 0.3s ease;
-        overflow-y: auto;
-        position: fixed;
-        top: 50px;
-        left: 0;
-        height: calc(100vh - 50px);
-        box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
-      }
-      #sidebar.hidden {
-        transform: translateX(-220px);
-      }
-      #main {
-        margin-left: 0;
-        padding: 50px 10px 20px 0;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-        width: 100%;
-        transition:
-          margin-left 0.3s ease,
-          width 0.3s ease;
-      }
-      #main.shifted {
-        margin-left: 220px;
-        width: calc(100% - 220px);
-      }
-      #table-container {
-        flex: 1;
-        overflow-y: auto;
-        overflow-x: auto;
-        max-height: calc(100vh - 140px);
-        position: relative;
-      }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        table-layout: fixed;
-        background-color: white;
-      }
-      thead {
-        background-color: #696969;
-        color: white;
-      }
-      th {
-        padding: 1px 1px;
-        height: 1px;
-        font-weight: bold;
-        font-size: 17px;
-        border: 1px solid #ccc;
-        line-height: 1.2;
-        text-align: center;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      td {
-        padding: 1px 1px;
-        height: 1px;
-        font-size: 15px;
-        border: 1px solid #ccc;
-        line-height: 1;
-        text-align: center;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      td a {
-        display: inline-block;
-        max-width: 100%;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      #ptc-table thead th {
-        position: sticky;
-        top: 0;
-        background-color: #696969;
-        z-index: 2;
-      }
-      #ptc-table thead tr:nth-child(2) th {
-        position: sticky;
-        top: 21.1px;
-        background-color: #696969;
-        z-index: 1;
-      }
-      tr:nth-child(even) {
-        background-color: #f0f0f0;
-      }
-      .hidden-col {
-        display: none;
-      }
-      a {
-        color: #663399;
-        text-decoration: none;
-      }
-      td[data-col="ptc"] a,
-      td[data-col="address"] a {
-        text-decoration: underline;
-      }
-      td[data-col="ptc"] a {
-        font-size: 18px;
-        font-weight: bold;
-      }
-      td[data-col="address"],
-      th[data-col="address"] {
-        text-align: left;
-        padding-left: 6px;
-      }
-      #toggle-button {
-        position: fixed;
-        top: 10px;
-        left: 10px;
-        z-index: 1000;
-        background: linear-gradient(90deg, #0066cc, #0099ff);
-        color: white;
-        border: none;
-        padding: 10px 16px;
-        font-size: 15px;
-        cursor: pointer;
-        border-radius: 8px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
-        transition: background 0.3s ease;
-      }
-      #toggle-button:hover {
-        background: linear-gradient(90deg, #005bb5, #0088e0);
-      }
-      .filter-group {
-        margin-bottom: 2px;
-      }
-      .group-header {
-        font-weight: bold;
-        cursor: pointer;
-        background-color: #ccc;
-        padding: 5px 10px;
-        border-radius: 4px;
-        user-select: none;
-      }
-      .group-header:hover {
-        background-color: #bbb;
-      }
-      .group-body {
-        padding-left: 10px;
-        margin-top: 5px;
-      }
-      .group-body.collapsed {
-        display: none;
-      }
-      td[data-col="sursa"] span,
-      td[data-col="pompa"] span {
-        font-size: 34px;
-        vertical-align: middle;
-        line-height: 1;
-      }
-      .hidden-col {
-        display: none;
-      }
-      col.hidden-col {
-        display: none !important;
-        width: 0 !important;
-      }
-      .filter-group .group-body label {
-        display: block;
-        margin-bottom: 5px;
-        line-height: 1.2;
-      }
+        :root{
+          --sidebar-width:280px; --sidebar-min:180px; --sidebar-max:600px; --resizer-width:6px;
+          --bg-sidebar:#f7f7fb; --bg-content:#ffffff; --border:#e2e2ea; --accent:#5b7cfa; --text:#1f1f29; --muted:#6b6b7a;
+        }
+        *{box-sizing:border-box}
+        html,body{height:100%;margin:0;color:var(--text);background:var(--bg-content);
+          font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif;line-height:1.4}
 
-      /* Квадрат/круг для помпы */
-      .pump-shape {
-        display: inline-block;
-        width: 30px;
-        height: 30px;
-        margin: 2px;
-        vertical-align: middle;
-        cursor: pointer;
-        transition:
-          border-radius 0.2s,
-          background 0.15s;
-        font-size: 30px;
-        line-height: 1;
-        text-align: center;
-      }
-      .pump-rect {
-        border-radius: 6px;
-      }
-      .pump-circle {
-        border-radius: 50%;
-      }
+        .layout{display:grid;grid-template-columns:var(--sidebar-width) var(--resizer-width) 1fr;grid-template-rows:100vh;height:100vh;width:100%;overflow:hidden}
+        .layout.collapsed{grid-template-columns:0 var(--resizer-width) 1fr}
 
-      #ptc-total {
-        font-weight: bold;
-        font-size: 22px;
-        margin-top: 16px;
-        margin-left: 4px;
-        position: absolute;
-        left: 0;
-        bottom: 6px;
-        z-index: 3;
-        color: #222;
-      }
+        aside.sidebar{overflow:auto;background:var(--bg-sidebar);border-right:1px solid var(--border)}
+        .sidebar-header{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--border)}
+        .sidebar-header h2{margin:0;font-size:14px;font-weight:600;color:var(--muted);letter-spacing:.3px;text-transform:uppercase}
+        .sidebar-body{padding:12px 14px}
+
+        .columns-group{margin-top:8px;border:1px solid var(--border);border-radius:8px;padding:8px 10px;background:#fff}
+        .columns-group legend{font-size:12px;color:var(--muted);padding:0 4px;letter-spacing:.2px}
+        .columns-list{column-count:2;column-gap:12px;max-height:40vh;overflow:auto;margin-top:6px}
+        .columns-list label{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text);user-select:none;white-space:nowrap;break-inside:avoid;margin-bottom:6px}
+        .columns-list input[type="checkbox"]{margin:0;accent-color:var(--accent)}
+
+        .resizer{cursor:col-resize;background:linear-gradient(90deg,transparent 0,transparent 40%,rgba(0,0,0,.06) 50%,transparent 60%,transparent 100%);position:relative}
+        .resizer::after{content:"";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:2px;height:24px;border-radius:1px;background:rgba(0,0,0,.18)}
+        .resizer:hover::after{background:rgba(0,0,0,.28)} .resizer:active::after{background:var(--accent)}
+        body.resizing,body.resizing *{cursor:col-resize!important;user-select:none}
+
+        main.main{overflow:auto;background:var(--bg-content);display:flex;flex-direction:column;min-width:0}
+        .topbar{display:flex;align-items:center;gap:10px;padding:5px 12px;border-bottom:1px solid var(--border);background:#fff;position:sticky;top:0;z-index:2}
+        .topbar .toggle-btn{padding:3px 8px;border:none;background:transparent;border-radius:6px;color:var(--text);font-size:13px;cursor:pointer}
+        .topbar .toggle-btn:hover{background:rgba(0,0,0,.06)}
+        .topbar .search-input{flex:0 1 320px;max-width:40vw;min-width:160px;padding:5px 10px;font-size:13px;border:1px solid var(--border);border-radius:6px;outline:none}
+        .topbar .search-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(91,124,250,.15)}
+        .topbar .refresh-btn{padding:4px 10px;border:none;background:var(--accent);color:#fff;border-radius:6px;font-size:13px;cursor:pointer}
+
+        .season-group{display:inline-flex;align-items:center;gap:6px;margin-left:4px}
+        .season-group label{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:6px;cursor:pointer;color:#374151;background:#f3f4f6;border:1px solid #e5e7eb;font-size:13px}
+        .season-group input[type="radio"]{margin:0;accent-color:var(--accent)}
+        .season-group input[type="radio"]:checked + span{color:#1f2937;font-weight:600}
+
+        .content-inner{padding:16px;min-width:0}
+        .table-wrapper{position:relative;overflow:auto;height:85vh;max-height:85vh;border:1px solid var(--border);border-radius:10px;background:#fff;box-shadow:0 2px 8px 0 rgba(93,107,166,0.03)}
+        .error-box{position:absolute;inset:12px;border:1px dashed #e66;background:#fff7f7;color:#b00;border-radius:8px;font:14px/1.4 system-ui;padding:16px;text-align:center;display:none}
+        .error-box.show{display:flex;align-items:center;justify-content:center}
+
+        table.data-table{border-collapse:separate;border-spacing:0;width:100%;font-size:14px;background:#fafaff;min-width:960px}
+        thead th{position:sticky;top:0;background:linear-gradient(90deg,#e5ebfa 0%,#f1f3fa 100%);border-bottom:2px solid var(--accent);
+          border-right:1px solid var(--border);padding:6px 10px;text-align:left;font-weight:700;color:#2a3475;letter-spacing:.05em;font-size:15px;z-index:1;white-space:nowrap}
+        thead tr+tr th{top:36px}
+        thead th:last-child{border-right:none}
+        thead th[data-col-group]{text-align:center;vertical-align:middle}
+
+        tbody td{border-top:1px solid var(--border);border-right:1px solid var(--border);padding:4px 10px;transition:background .2s;vertical-align:top;text-align:center;white-space:nowrap}
+        tbody td:last-child{border-right:none}
+        tbody tr:nth-child(even) td{background:#f5f6fd} tbody tr:nth-child(odd) td{background:#fff}
+        tbody tr:hover td{background:#e9edfb}
+        a,a:hover,a:focus,a:active{text-decoration:none}
+        a.ptc-link{color:#000!important;text-decoration:underline!important;font-size:17px}
+        th.sortable{cursor:pointer;user-select:none}
+        th .sort-indicator{display:inline-block;margin-left:6px;font-size:12px;opacity:.7}
+        th.sorted-asc .sort-indicator::after{content:"▲"} th.sorted-desc .sort-indicator::after{content:"▼"}
+
+        td[data-col="address"], th[data-col="address"]{text-align:left}
+        .pump-shape{display:inline-block;width:28px;height:28px;margin:2px;vertical-align:middle;cursor:pointer;font-size:26px;line-height:1;text-align:center;border-radius:6px}
+        #ptc-total{margin-top:8px;font-weight:600;color:#222}
+
+        /* визуальное отключение условий при сезоне Toate */
+        #conditionsBlock.is-disabled{opacity:.55;}
+
+        /* КРАСНАЯ ПОДСВЕТКА ДЛЯ T1/T2/T4 */
+        .em-red, .em-red:visited { color:#d21919 !important; font-weight:700; }
+        @media (max-width:720px){:root{--sidebar-width:240px}}
     </style>
-  </head>
-  <body>
-    <button id="toggle-button" onclick="toggleSidebar()">Filtru</button>
-    <input
-      type="text"
-      id="search-input"
-      placeholder="Caută PTC..."
-      style="
-        position: fixed;
-        top: 10px;
-        right: 20px;
-        z-index: 1000;
-        padding: 6px;
-        width: 220px;
-        border-radius: 4px;
-        border: 1px solid #ccc;
-      "
-    />
+</head>
+<body>
+<div class="layout" id="layout">
+    <aside class="sidebar" id="sidebar" aria-label="Боковая панель">
+        <div class="sidebar-header"><h2>SETĂRI</h2></div>
+        <div class="sidebar-body">
+            <fieldset class="columns-group">
+                <legend>Coloane PTC</legend>
+                <div class="columns-list" id="columnsList">
+                    <!-- фиксированная PTC не показываем; остальные управляем чекбоксами -->
+                    <label><input type="checkbox" value="address" checked> Adresa</label>
+                    <label><input type="checkbox" value="q1" checked> Q</label>
+                    <label><input type="checkbox" value="g1" checked> G1</label>
+                    <label><input type="checkbox" value="g2" checked> G2</label>
+                    <label><input type="checkbox" value="dg" checked> dG</label>
+                    <label><input type="checkbox" value="dg_pct" checked> Δ%</label>
+                    <label><input type="checkbox" value="t1" checked> T1</label>
+                    <label><input type="checkbox" value="t2" checked> T2</label>
+                    <label><input type="checkbox" value="dt" checked> dT</label>
 
-    <div id="sidebar" class="hidden">
-      <h3>Selectare</h3>
-      <div class="filter-group">
-        <div class="group-header" onclick="toggleGroup(this)">
-          Temperaturi ▸
-        </div>
-        <div class="group-body collapsed">
-          <label><input type="checkbox" value="t1" checked /> T1</label>
-          <label><input type="checkbox" value="t2" checked /> T2</label>
-          <label><input type="checkbox" value="t31" checked /> T31</label>
-          <label><input type="checkbox" value="t32" checked /> T32</label>
-          <label><input type="checkbox" value="t41" checked /> T41</label>
-          <label><input type="checkbox" value="t42" checked /> T42</label>
-          <label><input type="checkbox" value="t43" checked /> T43</label>
-          <label><input type="checkbox" value="t44" checked /> T44</label>
-        </div>
-      </div>
-      <div class="filter-group">
-        <div class="group-header" onclick="toggleGroup(this)">Debite ▸</div>
-        <div class="group-body collapsed">
-          <label><input type="checkbox" value="g1" checked /> G1</label>
-          <label><input type="checkbox" value="g2" checked /> G2</label>
-          <label><input type="checkbox" value="gacm" checked /> Gacm</label>
-          <label
-            ><input type="checkbox" value="g_adaos" checked /> Gadaos</label
-          >
-        </div>
-      </div>
-      <div class="filter-group">
-        <div class="group-header" onclick="toggleGroup(this)">Parametri ▸</div>
-        <div class="group-body collapsed">
-          <label><input type="checkbox" value="q" checked /> Q</label>
-          <label><input type="checkbox" value="dg" checked /> dG</label>
-          <label><input type="checkbox" value="dt" checked /> dT</label>
-          <label><input type="checkbox" value="dg_pct" checked /> Δ%</label>
-          <label><input type="checkbox" value="tacm" checked /> Tacm</label>
-        </div>
-      </div>
-      <div class="filter-group">
-        <div class="group-header" onclick="toggleGroup(this)">Stare ▸</div>
-        <div class="group-body collapsed">
-          <label><input type="checkbox" value="sursa" checked /> 220V</label>
-          <label><input type="checkbox" value="pompa" checked /> Pompa</label>
-          <label><input type="checkbox" value="time" checked /> Data/Ora</label>
-        </div>
-      </div>
-    </div>
+                    <label><input type="checkbox" value="t31" checked> T31</label>
+                    <label><input type="checkbox" value="t32" checked> T32</label>
 
-    <div id="main">
-      <div id="table-container">
-        <table id="ptc-table">
-          <colgroup>
-            <col data-col="ptc" style="width: 30px" />
-            <col data-col="address" style="width: 90px" />
-            <col data-col="q" style="width: 25px" />
-            <col data-col="g1" style="width: 25px" />
-            <col data-col="g2" style="width: 25px" />
-            <col data-col="dg" style="width: 25px" />
-            <col data-col="dg_pct" style="width: 25px" />
-            <col data-col="t1" style="width: 25px" />
-            <col data-col="t2" style="width: 25px" />
-            <col data-col="dt" style="width: 25px" />
-            <col data-col="t31" style="width: 25px" />
-            <col data-col="t32" style="width: 25px" />
-            <col data-col="t41" style="width: 25px" />
-            <col data-col="t42" style="width: 25px" />
-            <col data-col="t43" style="width: 25px" />
-            <col data-col="t44" style="width: 25px" />
-            <col data-col="tacm" style="width: 25px" />
-            <col data-col="gacm" style="width: 25px" />
-            <col data-col="g_adaos" style="width: 30px" />
-            <col data-col="sursa" style="width: 30px" />
-            <col data-col="pompa" style="width: 43px" />
-            <col data-col="time" style="width: 60px" />
-          </colgroup>
-          <thead>
-            <tr>
-              <th rowspan="2" data-col="ptc">PTC</th>
-              <th rowspan="2" data-col="address">Adresa</th>
-              <th rowspan="2" data-col="q">Q</th>
-              <th rowspan="2" data-col="g1">G1</th>
-              <th rowspan="2" data-col="g2">G2</th>
-              <th rowspan="2" data-col="dg">dG</th>
-              <th rowspan="2" data-col="dg_pct">Δ%</th>
-              <th rowspan="2" data-col="t1">T1</th>
-              <th rowspan="2" data-col="t2">T2</th>
-              <th rowspan="2" data-col="dt">dT</th>
-              <th colspan="2" data-col-group="t3group">T3</th>
-              <th colspan="4" data-col-group="t4group">T4</th>
-              <th rowspan="2" data-col="tacm">Tacm</th>
-              <th rowspan="2" data-col="gacm">Gacm</th>
-              <th rowspan="2" data-col="g_adaos">Gadaos</th>
-              <th rowspan="2" data-col="sursa">220V</th>
-              <th rowspan="2" data-col="pompa">Pompa</th>
-              <th rowspan="2" data-col="time">Data/Ora</th>
-            </tr>
-            <tr>
-              <th data-col="t31" data-col-parent="t3group">T31</th>
-              <th data-col="t32" data-col-parent="t3group">T32</th>
-              <th data-col="t41" data-col-parent="t4group">T41</th>
-              <th data-col="t42" data-col-parent="t4group">T42</th>
-              <th data-col="t43" data-col-parent="t4group">T43</th>
-              <th data-col="t44" data-col-parent="t4group">T44</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-      <div id="ptc-total"></div>
-    </div>
+                    <label><input type="checkbox" value="t41" checked> T41</label>
+                    <label><input type="checkbox" value="t42" checked> T42</label>
+                    <label><input type="checkbox" value="t43" checked> T43</label>
+                    <label><input type="checkbox" value="t44" checked> T44</label>
 
-    <audio id="alarmSound" src="/static/sonor.wav" loop></audio>
+                    <label><input type="checkbox" value="tacm" checked> Tacm</label>
+                    <label><input type="checkbox" value="gacm" checked> Gacm</label>
+                    <label><input type="checkbox" value="gacm_p" checked> Gacm-P</label>
+                    <label><input type="checkbox" value="dgacm_val" checked> ΔGacm</label>
+                    <label><input type="checkbox" value="g_adaos" checked> Gadaos</label>
+                    <label><input type="checkbox" value="sursa" checked> 220V</label>
+                    <label><input type="checkbox" value="pompa" checked> Pompa</label>
+                    <label><input type="checkbox" value="time" checked> Data/Ora</label>
+                </div>
+            </fieldset>
 
-    <!-- Укажи реальный путь к твоему звуку тревоги, например /static/alarm.mp3 -->
+            <!-- ───── Blocuri „Condiții” ───── -->
+            <fieldset class="columns-group" id="conditionsBlock">
+                <legend>Condiții</legend>
 
-    <script>
-      function toggleSidebar() {
-        const sidebar = document.getElementById("sidebar");
-        const main = document.getElementById("main");
-        sidebar.classList.toggle("hidden");
-        main.classList.toggle("shifted");
+                <!-- T1min -->
+                <fieldset class="columns-group" id="cond-t1min">
+                    <legend>T1min</legend>
+                    <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                        <input type="checkbox" id="cond_t1min_enabled" name="cond_t1min_enabled" value="1">
+                    </label>
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                        <span style="min-width:74px;">T1 min ≤</span>
+                        <input type="number" step="any" name="cond_t1min_t1" id="cond_t1min_t1" value="50"
+                               style="width:100%;">
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="min-width:74px;">G1 &gt;</span>
+                        <input type="number" step="any" name="cond_t1min_g1" id="cond_t1min_g1" value="0.5"
+                               style="width:100%;">
+                    </div>
+                </fieldset>
+
+                <!-- T4min -->
+                <fieldset class="columns-group" id="cond-t4min">
+                    <legend>T4min</legend>
+                    <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                        <input type="checkbox" id="cond_t4min_enabled" name="cond_t4min_enabled" value="1" checked>
+                    </label>
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                        <span style="min-width:74px;">T4 min ≤</span>
+                        <input type="number" step="any" name="cond_t4min_t4" id="cond_t4min_t4" value="30"
+                               style="width:100%;">
+                    </div>
+                </fieldset>
+
+                <!-- ΔT min -->
+                <fieldset class="columns-group" id="cond-dtmin">
+                    <legend>ΔT min</legend>
+                    <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                        <input type="checkbox" id="cond_dtmin_enabled" name="cond_dtmin_enabled" value="1" checked>
+                    </label>
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                        <span style="min-width:74px;">ΔT min &lt;</span>
+                        <input type="number" step="any" name="cond_dtmin_dt" id="cond_dtmin_dt" value="5"
+                               style="width:100%;">
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="min-width:74px;">T1 &gt;</span>
+                        <input type="number" step="any" name="cond_dtmin_t1_over" id="cond_dtmin_t1_over" value="50"
+                               style="width:100%;">
+                    </div>
+                </fieldset>
+
+                <!-- Tacm -->
+                <fieldset class="columns-group" id="cond-tacm">
+                    <legend>Tacm</legend>
+                    <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                        <input type="checkbox" id="cond_tacm_enabled" name="cond_tacm_enabled" value="1">
+                    </label>
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                        <span style="min-width:74px;">Tacm min ≤</span>
+                        <input type="number" step="any" name="cond_tacm_min" id="cond_tacm_min" value="50"
+                               style="width:100%;">
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="min-width:74px;">Tacm max ≥</span>
+                        <input type="number" step="any" name="cond_tacm_max" id="cond_tacm_max" value="60"
+                               style="width:100%;">
+                    </div>
+                </fieldset>
+
+                <!-- Gacm max -->
+                <fieldset class="columns-group" id="cond-gacm-max">
+                    <legend>Gacm max</legend>
+                    <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                        <input type="checkbox" id="cond_gacm_max_enabled" name="cond_gacm_max_enabled" value="1">
+                    </label>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="min-width:74px;">Gacm ≥</span>
+                        <input type="number" step="any" name="cond_gacm_max" id="cond_gacm_max" value="10"
+                               style="width:100%;">
+                    </div>
+                </fieldset>
+
+                <!-- ΔGacm max -->
+                <fieldset class="columns-group" id="cond-dgacm">
+                    <legend>ΔGacm max</legend>
+                    <label>
+                        <input type="checkbox" id="cond_dgacm_enabled" name="cond_dgacm_enabled" value="1">
+                    </label>
+                    <div>
+                        <span>Gacm ≥ 5 → ΔG ≥</span>
+                        <input type="number" step="0.1" name="dgacm_abs" id="dgacm_abs" value="1.0">
+                    </div>
+                    <div>
+                        <span>Gacm &lt; 5 → ΔG% ≥</span>
+                        <input type="number" step="1" name="dgacm_pct" id="dgacm_pct" value="20">
+                    </div>
+                </fieldset>
+
+
+                <!-- ΔGacm (новый пустой чекбокс для будущей логики) -->
+                <fieldset class="columns-group" id="cond-dgacm-col">
+                    <legend>ΔGacm</legend>
+                    <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                        <input type="checkbox" id="cond_dgacm_col_enabled" name="cond_dgacm_col_enabled" value="1">
+                        Activare
+                    </label>
+                </fieldset>
+
+
+                <!-- G1 min -->
+                <fieldset class="columns-group" id="cond-g1min">
+                    <legend>G1 min</legend>
+                    <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                        <input type="checkbox" id="cond_g1_min_enabled" name="cond_g1_min_enabled" value="1">
+                    </label>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="min-width:74px;">G1 ≤</span>
+                        <input type="number" step="any" name="cond_g1_min" id="cond_g1_min" value="0.5"
+                               style="width:100%;">
+                    </div>
+                </fieldset>
+
+                <!-- ΔG% max -->
+                <fieldset class="columns-group" id="cond-dgp">
+                    <legend>ΔG% max</legend>
+                    <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                        <input type="checkbox" id="cond_dgp_enabled" name="cond_dgp_enabled" value="1">
+                    </label>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="min-width:74px;">ΔG% &gt;</span>
+                        <input type="number" step="any" name="cond_dgp_limit" id="cond_dgp_limit" value="2.5"
+                               style="width:100%;">
+                    </div>
+                </fieldset>
+
+                <!-- ΔG max -->
+                <fieldset class="columns-group" id="cond-dgflow">
+                    <legend>ΔG max</legend>
+                    <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                        <input type="checkbox" id="cond_dg_flow_enabled" name="cond_dg_flow_enabled" value="1">
+                    </label>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="min-width:74px;">ΔG &gt;</span>
+                        <input type="number" step="any" name="cond_dg_flow_limit" id="cond_dg_flow_limit" value="1.0"
+                               style="width:100%;">
+                    </div>
+                </fieldset>
+
+                <!-- Gadaos max -->
+                <fieldset class="columns-group" id="cond-gadaos">
+                    <legend>Gadaos max</legend>
+                    <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                        <input type="checkbox" id="cond_gadaos_enabled" name="cond_gadaos_enabled" value="1">
+                    </label>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="min-width:74px;">Gadaos &gt;</span>
+                        <input type="number" step="any" name="cond_gadaos_limit" id="cond_gadaos_limit" value="0.1"
+                               style="width:100%;">
+                    </div>
+                </fieldset>
+
+                <!-- Ore fără date -->
+                <fieldset class="columns-group" id="cond-dataora">
+                    <legend>Ore fără date</legend>
+                    <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                        <input type="checkbox" id="cond_dataora_enabled" name="cond_dataora_enabled" value="1">
+                    </label>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <span style="min-width:74px;">Limita (ore)</span>
+                        <input type="number" step="1" name="cond_dataora_limit" id="cond_dataora_limit" value="1"
+                               style="width:100%;">
+                    </div>
+                </fieldset>
+            </fieldset>
+
+        </div>
+    </aside>
+
+    <div class="resizer" id="resizer" role="separator" aria-orientation="vertical"
+         aria-label="Изменение ширины боковой панели" tabindex="0"></div>
+
+    <main class="main" id="main">
+        <div class="topbar">
+            <button id="toggleSidebar" class="toggle-btn" type="button" aria-pressed="false" aria-controls="sidebar">
+                <<
+            </button>
+
+            <fieldset class="season-group" role="radiogroup" aria-label="Sezon">
+                <label><input type="radio" name="season" value="Iarna" id="season-iarna"><span>Iarnă</span></label>
+                <label><input type="radio" name="season" value="Vara" id="season-vara"><span>Vară</span></label>
+                <label><input type="radio" name="season" value="Toate" id="season-toate"><span>Toate</span></label>
+            </fieldset>
+
+            <input type="text" id="searchInput" class="search-input" placeholder="Caută PTC sau Adresă…">
+            <button id="refreshBtn" class="refresh-btn" type="button">Reactualizare</button>
+        </div>
+
+        <div class="content-inner">
+            <div class="table-wrapper">
+                <div class="error-box" id="errorBox"></div>
+                <table class="data-table" id="ptcTable">
+                    <thead>
+                    <tr id="theadRow1"></tr>
+                    <tr id="theadRow2"></tr>
+                    </thead>
+                    <tbody id="tbody"></tbody>
+                </table>
+            </div>
+            <div id="ptc-total"></div>
+        </div>
+    </main>
+</div>
+
+<audio id="alarm-audio" src="/static/sonor.mp3" preload="auto" style="display:none"></audio>
+
+<script>
+    (function(){
+      "use strict";
+
+      /* ===== Sidebar resize / toggle ===== */
+      const root=document.documentElement, layout=document.getElementById('layout'), resizer=document.getElementById('resizer'), toggleBtn=document.getElementById('toggleSidebar');
+      const LS_W='ui.sidebar.width', LS_C='ui.sidebar.collapsed';
+      const MIN=parseInt(getComputedStyle(root).getPropertyValue('--sidebar-min'))||180;
+      const MAX=parseInt(getComputedStyle(root).getPropertyValue('--sidebar-max'))||600;
+      const DEF=parseInt(getComputedStyle(root).getPropertyValue('--sidebar-width'))||280;
+
+      function setWidth(px){const c=Math.min(MAX,Math.max(MIN,px));root.style.setProperty('--sidebar-width',c+'px');try{localStorage.setItem(LS_W,String(c))}catch(e){}}
+      function applySaved(){
+        let w; try{w=parseInt(localStorage.getItem(LS_W)||'',10)}catch(e){}
+        if(!isNaN(w)) root.style.setProperty('--sidebar-width',w+'px');
+        let col=false; try{col=localStorage.getItem(LS_C)==='1'}catch(e){}
+        layout.classList.toggle('collapsed',col); toggleBtn.textContent=col?'>>':'<<'; toggleBtn.setAttribute('aria-pressed',col?'true':'false');
+      }
+      function setCollapsed(col){
+        layout.classList.toggle('collapsed',col);
+        try{localStorage.setItem(LS_C, col?'1':'0')}catch(e){}
+        toggleBtn.textContent=col?'>>':'<<'; toggleBtn.setAttribute('aria-pressed',col?'true':'false');
+      }
+      applySaved();
+      toggleBtn.addEventListener('click',()=>setCollapsed(!layout.classList.contains('collapsed')));
+
+      let dragging=false,startX=0,startW=0;
+      function startDrag(x){dragging=true;startX=x;startW=parseInt(getComputedStyle(root).getPropertyValue('--sidebar-width'))||DEF;document.body.classList.add('resizing');if(layout.classList.contains('collapsed')) setCollapsed(false)}
+      function moveDrag(x){if(!dragging) return; setWidth(startW+(x-startX))}
+      function endDrag(){if(!dragging) return; dragging=false;document.body.classList.remove('resizing')}
+      resizer.addEventListener('mousedown',e=>{e.preventDefault();startDrag(e.clientX)}); window.addEventListener('mousemove',e=>moveDrag(e.clientX)); window.addEventListener('mouseup',endDrag);
+      resizer.addEventListener('touchstart',e=>{if(!e.touches||!e.touches[0])return;startDrag(e.touches[0].clientX);e.preventDefault()},{passive:false});
+      window.addEventListener('touchmove',e=>{if(!e.touches||!e.touches[0])return;moveDrag(e.touches[0].clientX)},{passive:false}); window.addEventListener('touchend',endDrag);
+      resizer.addEventListener('dblclick',()=>setWidth(DEF));
+
+            /* ===== Columns config ===== */
+      const ALL_COLS = [
+          {key:'ptc', title:'PTC', fixed:true},
+          {key:'address', title:'Adresa'},
+          {key:'q1', title:'Q'},
+          {key:'g1', title:'G1'},
+          {key:'g2', title:'G2'},
+          {key:'dg', title:'ΔG'},
+          {key:'dg_pct', title:'Δ%'},
+          {key:'t1', title:'T1'},
+          {key:'t2', title:'T2'},
+          {key:'dt', title:'ΔT'},
+          {key:'t31', title:'T31', group:'T3'},
+          {key:'t32', title:'T32', group:'T3'},
+          {key:'t41', title:'T41', group:'T4'},
+          {key:'t42', title:'T42', group:'T4'},
+          {key:'t43', title:'T43', group:'T4'},
+          {key:'t44', title:'T44', group:'T4'},
+          {key:'tacm', title:'Tacm'},
+          {key:'gacm', title:'Gacm'},
+          {key:'gacm_p', title:'Gacm-P'},
+          {key:'dgacm_val', title:'ΔGacm'},
+          {key:'g_adaos', title:'Gadaos'},
+          {key:'sursa', title:'220V'},
+          {key:'pompa', title:'Pompa'},
+          {key:'time', title:'Data/Ora'}
+        ];
+        const ORDER_KEYS = ALL_COLS.map(c=>c.key);
+
+        const LS_COLS = 'ui.columns.checked';
+        const LS_SEASON = 'ui.season';
+
+
+      function getCheckedCols(){
+        const boxes=[...document.querySelectorAll('#columnsList input[type="checkbox"]')];
+        const picked=boxes.filter(b=>b.checked).map(b=>b.value);
+        return ALL_COLS.filter(c=>c.fixed || picked.includes(c.key));
+      }
+      function getDisplayCols(){
+        const cols=getCheckedCols();
+        return cols.slice().sort((a,b)=>ORDER_KEYS.indexOf(a.key)-ORDER_KEYS.indexOf(b.key));
       }
 
-      function updateColumnVisibility() {
-        const checkedCols = Array.from(
-          document.querySelectorAll('#sidebar input[type="checkbox"]'),
-        )
-          .filter((cb) => cb.checked)
-          .map((cb) => cb.value);
+      // ===== Seasons presets =====
+      const PRESETS = {
+     Iarna: [
+    'address','q1','g1','g2','dg','dg_pct','t1','t2','dt',
+    't31','t32','t41','t42','t43','t44',
+    'tacm','gacm','gacm_p','dgacm_val','g_adaos','sursa','pompa','time'
+  ],
+  Vara: [
+    'address','q1','g1','g2','dg','dg_pct','t1','t2','dt',
+    't31','t32','t41','t42','t43','t44',
+    'tacm','gacm','gacm_p','dgacm_val','g_adaos','sursa','time'
+  ],
+  Toate: ALL_COLS.filter(c=>!c.fixed).map(c=>c.key)
+};
 
-        document
-          .querySelectorAll("#ptc-table col[data-col]")
-          .forEach((colEl) => {
-            const col = colEl.getAttribute("data-col");
-            if (
-              col === "ptc" ||
-              col === "address" ||
-              checkedCols.includes(col)
-            ) {
-              colEl.style.display = "";
-            } else {
-              colEl.style.display = "none";
-            }
-          });
 
-        document
-          .querySelectorAll("#ptc-table th[data-col], #ptc-table td[data-col]")
-          .forEach((cell) => {
-            const col = cell.getAttribute("data-col");
-            if (
-              col === "ptc" ||
-              col === "address" ||
-              checkedCols.includes(col)
-            ) {
-              cell.style.display = "";
-            } else {
-              cell.style.display = "none";
-            }
-          });
-
-        const t3Cols = ["t31", "t32"];
-        const t3VisibleCols = t3Cols.filter((col) => checkedCols.includes(col));
-        document
-          .querySelectorAll('#ptc-table th[data-col-group="t3group"]')
-          .forEach((th) => {
-            if (t3VisibleCols.length === 0) {
-              th.style.display = "none";
-            } else {
-              th.style.display = "";
-              th.colSpan = t3VisibleCols.length;
-            }
-          });
-
-        const t4Cols = ["t41", "t42", "t43", "t44"];
-        const t4VisibleCols = t4Cols.filter((col) => checkedCols.includes(col));
-        document
-          .querySelectorAll('#ptc-table th[data-col-group="t4group"]')
-          .forEach((th) => {
-            if (t4VisibleCols.length === 0) {
-              th.style.display = "none";
-            } else {
-              th.style.display = "";
-              th.colSpan = t4VisibleCols.length;
-            }
-          });
+      function setColumnsBySeason(season){
+        const values=PRESETS[season]||[];
+        const boxes=document.querySelectorAll('#columnsList input[type="checkbox"]');
+        boxes.forEach(cb=>{ cb.checked = values.includes(cb.value); });
+        saveCheckedToLS();
+      }
+      function saveCheckedToLS(){
+        try{
+          const vals=[...document.querySelectorAll('#columnsList input[type="checkbox"]')]
+            .filter(cb=>cb.checked).map(cb=>cb.value);
+          localStorage.setItem(LS_COLS, JSON.stringify(vals));
+        }catch(e){}
+      }
+      function restoreCheckedFromLS(){
+        try{
+          const raw=localStorage.getItem(LS_COLS);
+          if(!raw) return false;
+          const vals=JSON.parse(raw);
+          if(!Array.isArray(vals) || !vals.length) return false;
+          const boxes=document.querySelectorAll('#columnsList input[type="checkbox"]');
+          boxes.forEach(cb=>{ cb.checked = vals.includes(cb.value); });
+          return true;
+        }catch(e){ return false; }
       }
 
-      async function loadData() {
-        const response = await fetch("/api/ptc/");
-        const data = await response.json();
+      function getCurrentSeason(){
+        const el=document.querySelector('input[name="season"]:checked');
+        return el ? el.value : 'Iarna';
+      }
+      function setCurrentSeason(season){
+        const el=document.querySelector('input[name="season"][value="'+season+'"]');
+        if(el){ el.checked=true; }
+        try{ localStorage.setItem(LS_SEASON, season); }catch(e){}
+      }
+      function restoreSeason(){
+        let s='Iarna'; try{ s=localStorage.getItem(LS_SEASON)||'Iarna'; }catch(e){}
+        setCurrentSeason(s);
+        return s;
+      }
 
-        const tbody = document.querySelector("#ptc-table tbody");
-        tbody.innerHTML = "";
+      let CURRENT_COLS=[];
 
-        data.forEach((row) => {
-          const tr = document.createElement("tr");
-          let cls = "";
-          const t1 = parseFloat(row.t1);
-          const dg_pct = parseFloat(row.dg_pct);
-          if (t1 > 95 || dg_pct > 10) {
-            cls = "error";
-          } else if (t1 < 65 || dg_pct < -10) {
-            cls = "warn";
-          } else {
-            cls = "good";
+      function buildHeader(){
+        const cols=getDisplayCols();
+        CURRENT_COLS=cols.slice();
+
+        const row1=document.getElementById('theadRow1'); const row2=document.getElementById('theadRow2');
+        row1.innerHTML=''; row2.innerHTML='';
+
+        const idxDT = ORDER_KEYS.indexOf('dt');
+        const before = cols.filter(c=>!c.group && ORDER_KEYS.indexOf(c.key) <= idxDT);
+        const after  = cols.filter(c=>!c.group && ORDER_KEYS.indexOf(c.key) >  idxDT);
+
+        const kidsT3 = cols.filter(c=>c.group==='T3');
+        const kidsT4 = cols.filter(c=>c.group==='T4');
+        const hasGroups = (kidsT3.length + kidsT4.length) > 0;
+
+        before.forEach(c=>{
+          const th=document.createElement('th');
+          th.dataset.col=c.key; th.textContent=c.title; th.rowSpan=hasGroups?2:1; th.classList.add('sortable');
+          th.appendChild(Object.assign(document.createElement('span'),{className:'sort-indicator','aria-hidden':'true'}));
+          row1.appendChild(th);
+        });
+
+        if (kidsT3.length){
+          const th=document.createElement('th'); th.dataset.colGroup='T3'; th.colSpan=kidsT3.length; th.textContent='T3';
+          row1.appendChild(th);
+        }
+        if (kidsT4.length){
+          const th=document.createElement('th'); th.dataset.colGroup='T4'; th.colSpan=kidsT4.length; th.textContent='T4';
+          row1.appendChild(th);
+        }
+
+        after.forEach(c=>{
+          const th=document.createElement('th');
+          th.dataset.col=c.key; th.textContent=c.title; th.rowSpan=hasGroups?2:1; th.classList.add('sortable');
+          th.appendChild(Object.assign(document.createElement('span'),{className:'sort-indicator','aria-hidden':'true'}));
+          row1.appendChild(th);
+        });
+
+        if(hasGroups){
+          row2.style.display='';
+          kidsT3.concat(kidsT4).forEach(c=>{
+            const th=document.createElement('th'); th.dataset.col=c.key; th.dataset.colParent=c.group; th.textContent=c.title; th.classList.add('sortable');
+            th.appendChild(Object.assign(document.createElement('span'),{className:'sort-indicator','aria-hidden':'true'}));
+            row2.appendChild(th);
+          });
+        } else {
+          row2.style.display='none';
+        }
+
+        initSorting();
+      }
+
+      /* ===== Sorting ===== */
+      function parseAsDate(v){const s=String(v||'').trim();const m=/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})$/.exec(s); if(!m) return null;
+        const t=new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5],0,0).getTime(); return isNaN(t)?null:t}
+      function parseAsNumber(v){const s=String(v||'').trim().replace(/\s+/g,'').replace(',', '.'); const n=parseFloat(s); return Number.isFinite(n)?n:null}
+      function keyOf(td){
+        const t=td ? (td.textContent||'') : '';
+        const d=parseAsDate(t); if(d!==null){return{type:'date',value:d}}
+        const n=parseAsNumber(t); if(n!==null){return{type:'number',value:n}}
+        return{type:'string',value:t.toLowerCase()}
+      }
+      function initSorting(){
+        const table=document.getElementById('ptcTable'); const thead=table.tHead; const tbody=table.tBodies[0]; if(!thead||!tbody) return;
+
+        const thMap=new Map();
+        thead.querySelectorAll('th[data-col]').forEach(th=>{ thMap.set(th.dataset.col, th); });
+
+        const headers = CURRENT_COLS.map(c=>thMap.get(c.key)).filter(Boolean);
+
+        headers.forEach((th, idxGlobal)=>{
+          th.classList.add('sortable'); th.setAttribute('tabindex','0'); th.setAttribute('role','button'); th.setAttribute('aria-sort','none');
+          let indicator=th.querySelector('.sort-indicator'); if(!indicator){indicator=document.createElement('span'); indicator.className='sort-indicator'; indicator.setAttribute('aria-hidden','true'); th.appendChild(indicator);}
+
+          function setClasses(active,dir){
+            headers.forEach(h=>{h.classList.remove('sorted-asc','sorted-desc');h.setAttribute('aria-sort','none')});
+            if(dir==='asc'){active.classList.add('sorted-asc');active.setAttribute('aria-sort','ascending')}
+            else if(dir==='desc'){active.classList.add('sorted-desc');active.setAttribute('aria-sort','descending')}
           }
-          tr.className = cls;
+          function sort(dir){
+            const rows=[...tbody.querySelectorAll('tr')].map((tr,i)=>({tr,i,key:keyOf(tr.querySelectorAll('td[data-col]')[idxGlobal])}));
+            rows.sort((a,b)=>{
+              const order={number:0,date:1,string:2};
+              if(a.key.type!==b.key.type) return (order[a.key.type]??9)-(order[b.key.type]??9);
+              if(a.key.value<b.key.value) return -1; if(a.key.value>b.key.value) return 1; return 0;
+            });
+            if(dir==='desc') rows.reverse();
+            const frag=document.createDocumentFragment(); rows.forEach(r=>frag.appendChild(r.tr)); tbody.appendChild(frag);
+          }
+          function activate(){
+            const cur=th.dataset.sortDir==='asc'?'asc':th.dataset.sortDir==='desc'?'desc':null; const next=cur==='asc'?'desc':'asc';
+            headers.forEach(h=>{delete h.dataset.sortDir}); th.dataset.sortDir=next; setClasses(th,next); sort(next);
+          }
+          th.onclick=activate; th.onkeydown=(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();activate()}}
+        });
+      }
 
-          tr.innerHTML = `
-<td data-col="ptc">
-  <a href="http://10.1.1.174/view/view_page.php?title=${row.ptc}" 	target="_blank">${row.ptc}</a>
-</td>
-<td data-col="address">
-  <a href="http://10.1.1.248:2222/?obiect=${row.ptc}" target="_blank">	${row.address}</a>
-</td>
-<td data-col="q">${row.id_q1 ? `<a href="${row.id_q1}" target="_blank">	${row.q1}</a>` : row.q1}
-</td>
-<td data-col="g1">${row.id_g1 ? `<a href="${row.id_g1}" target="_blank">	${row.g1}</a>` : row.g1}
-</td>
-<td data-col="g2">${row.id_g2 ? `<a href="${row.id_g2}" target="_blank">	${row.g2}</a>` : row.g2}
-</td>
-<td data-col="dg">${row.id_dg ? `<a href="${row.id_dg}" target="_blank">	${row.dg}</a>` : row.dg}
-</td>
-<td data-col="dg_pct">${row.dg_pct}</td>
-<td data-col="t1">${row.id_t1 ? `<a href="${row.id_t1}" target="_blank">${row.t1}</a>` : row.t1}</td>
-<td data-col="t2">${row.id_t2 ? `<a href="${row.id_t2}" target="_blank">${row.t2}</a>` : row.t2}</td>
-<td data-col="dt">${row.id_dt ? `<a href="${row.id_dt}" target="_blank">${row.dt}</a>` : row.dt}</td>
-<td data-col="t31"><a href="http://10.1.1.248:1111/?param_rokura=t31&obiect=PT_${row.ptc}" target="_blank">${row.t31}</a></td>
-<td data-col="t32"><a href="http://10.1.1.248:1111/?param_rokura=t32&obiect=PT_${row.ptc}" target="_blank">${row.t32}</a></td>
-<td data-col="t41"><a href="http://10.1.1.248:1111/?param_rokura=t41&obiect=PT_${row.ptc}" target="_blank">${row.t41}</a></td>
-<td data-col="t42"><a href="http://10.1.1.248:1111/?param_rokura=t42&obiect=PT_${row.ptc}" target="_blank">${row.t42}</a></td>
-<td data-col="t43"><a href="http://10.1.1.248:1111/?param_rokura=t43&obiect=PT_${row.ptc}" target="_blank">${row.t43}</a></td>
-<td data-col="t44"><a href="http://10.1.1.248:1111/?param_rokura=t44&obiect=PT_${row.ptc}" target="_blank">${row.t44}</a></td>
-<td data-col="tacm">${row.id_tacm ? `<a href="${row.id_tacm}" target="_blank">${row.tacm}</a>` : row.tacm}</td>
-<td data-col="gacm">${row.id_gacm ? `<a href="${row.id_gacm}" target="_blank">${row.gacm}</a>` : row.gacm}</td>
-<td data-col="g_adaos">${row.id_g_adaos ? `<a href="${row.id_g_adaos}" target="_blank">${row.g_adaos}</a>` : row.g_adaos}</td>
-<td data-col="sursa">
-  ${row.id_sursa ? `<a href="${row.id_sursa}" target="_blank"><span style="color: ${row.sursa ? "green" : "red"};">●</span></a>` : `<span style="color: ${row.sursa ? "green" : "red"};">●</span>`}
-</td>
-<td data-col="pompa">
-  ${
-    row.pompa && Array.isArray(row.pompa)
-      ? row.pompa
-          .map((val, idx) => {
-            const pompaNum = row.pompa_nums && row.pompa_nums[idx];
-            let url = "";
-            if (pompaNum === 1) url = row.id_pompa1;
-            else if (pompaNum === 2) url = row.id_pompa2;
-            else if (pompaNum === 3) url = row.id_pompa3;
+     /* ===== Rendering ===== */
+const tbodyEl=document.getElementById('tbody');
+function linkOrText(url,txt){return url?`<a href="${url}" target="_blank">${txt}</a>`:String(txt)}
+function boolDot(on){return `<span style="color:${on?'green':'red'};">●</span>`}
 
-            let color = "gray";
-            let lcs = row.lcs || 0;
-            const LCS_NORM = 30;
+function renderRows(data){
+  const cols=getDisplayCols();
 
-            if (lcs < LCS_NORM) {
-              color = "yellow";
-            } else {
-              if (val > 200) color = "red";
-              else if (val > 0) color = "green";
-              else color = "gray";
+  // включенные условия и их лимиты
+  const t1Checked   = document.getElementById('cond_t1min_enabled')?.checked ?? false;
+  const tacmChecked = document.getElementById('cond_tacm_enabled')?.checked ?? false;
+  const tacmMin     = parseFloat(document.getElementById('cond_tacm_min')?.value || '0');
+  const tacmMax     = parseFloat(document.getElementById('cond_tacm_max')?.value || '0');
+  const gacmChecked = document.getElementById('cond_gacm_max_enabled')?.checked ?? false;
+  const gacmLimit   = parseFloat(document.getElementById('cond_gacm_max')?.value || '0');
+
+  const dgacmChecked = document.getElementById('cond_dgacm_enabled')?.checked ?? false;
+  const dgacmLimit   = parseFloat(document.getElementById('cond_dgacm_split')?.value || '0');
+
+  const g1Checked = document.getElementById('cond_g1_min_enabled')?.checked ?? false;
+  const g1Limit   = parseFloat(document.getElementById('cond_g1_min')?.value || '0');
+
+  const dgpChecked = document.getElementById('cond_dgp_enabled')?.checked ?? false;
+  const dgpLimit   = parseFloat(document.getElementById('cond_dgp_limit')?.value || '0');
+
+  const dgChecked  = document.getElementById('cond_dg_flow_enabled')?.checked ?? false;
+  const dgLimit    = parseFloat(document.getElementById('cond_dg_flow_limit')?.value || '0');
+
+  const gadaosChecked = document.getElementById('cond_gadaos_enabled')?.checked ?? false;
+  const gadaosLimit   = parseFloat(document.getElementById('cond_gadaos_limit')?.value || '0');
+
+  const dataoraChecked = document.getElementById('cond_dataora_enabled')?.checked ?? false;
+
+  tbodyEl.innerHTML='';
+  data.forEach(row=>{
+    const tds=[];
+    cols.forEach(c=>{
+      if(c.key==='ptc'){
+        tds.push(`<td data-col="ptc"><a class="ptc-link" target="_blank" href="http://10.1.1.174/view/view_page.php?title=${row.ptc}">${row.ptc}</a></td>`);
+        return;
+      }
+      if(c.key==='address'){
+        const url = 'http://10.1.1.248:2222/?obiect=' + encodeURIComponent(row.ptc);
+        tds.push(`<td data-col="address">${linkOrText(url, row.address||'')}</td>`);
+        return;
+      }
+      if(c.key==='sursa'){
+        tds.push(`<td data-col="sursa">${linkOrText(row.id_sursa, boolDot(!!row.sursa))}</td>`);
+        return;
+      }
+      if(c.key==='pompa'){
+        let html='';
+        if(row.pompa && Array.isArray(row.pompa)){
+          html=row.pompa.map((val, idx)=>{
+            const num=row.pompa_nums && row.pompa_nums[idx];
+            let url=''; if(num===1) url=row.id_pompa1; else if(num===2) url=row.id_pompa2; else if(num===3) url=row.id_pompa3;
+            let color='gray'; const lcs=row.lcs||0; const LCS_NORM=30;
+            if(lcs < LCS_NORM) color='yellow'; else { if(val>200) color='red'; else if(val>0) color='green'; }
+            const span=`<span class="pump-shape" style="color:${color}">&#9632;</span>`;
+            return url ? `<a href="${url}" target="_blank">${span}</a>` : span;
+          }).join('');
+        }
+        tds.push(`<td data-col="pompa">${html}</td>`);
+        return;
+      }
+
+      // --- T1 ---
+      if(c.key==='t1'){
+        const url = row.id_t1;
+        const txt = (row.t1 ?? '');
+        const red = t1Checked && (row.t1_trigger === true);
+        const inner = url
+          ? `<a href="${url}" target="_blank" ${red ? 'class="em-red"' : ''}>${txt}</a>`
+          : `<span ${red ? 'class="em-red"' : ''}>${txt}</span>`;
+        tds.push(`<td data-col="t1">${inner}</td>`);
+        return;
+      }
+
+      // --- T2 ---
+      if(c.key==='t2'){
+        const url = row.id_t2;
+        const txt = (row.t2 ?? '');
+        const red = row.t2_red === true;
+        const inner = url
+          ? `<a href="${url}" target="_blank" ${red ? 'class="em-red"' : ''}>${txt}</a>`
+          : `<span ${red ? 'class="em-red"' : ''}>${txt}</span>`;
+        tds.push(`<td data-col="t2">${inner}</td>`);
+        return;
+      }
+
+      // --- T4 (t41..t44) ---
+      if (c.key === 't41' || c.key === 't42' || c.key === 't43' || c.key === 't44') {
+        const flagMap = { t41: 't41_red', t42: 't42_red', t43: 't43_red', t44: 't44_red' };
+        const redFlagKey = flagMap[c.key];
+        const isRed = row[redFlagKey] === true;
+        const idKey = 'id_' + c.key;
+        const url = row[idKey];
+        const txt = (row[c.key] ?? '');
+        const inner = url
+          ? `<a href="${url}" target="_blank" ${isRed ? 'class="em-red"' : ''}>${txt}</a>`
+          : `<span ${isRed ? 'class="em-red"' : ''}>${txt}</span>`;
+        tds.push(`<td data-col="${c.key}">${inner}</td>`);
+        return;
+      }
+
+      // --- Tacm ---
+      if(c.key==='tacm'){
+        const url=row.id_tacm;
+        const txt=row.tacm ?? '';
+        const isRed = tacmChecked && ((txt < tacmMin) || (txt > tacmMax));
+        const inner=url
+          ? `<a href="${url}" target="_blank" ${isRed ? 'class="em-red"' : ''}>${txt}</a>`
+          : `<span ${isRed ? 'class="em-red"' : ''}>${txt}</span>`;
+        tds.push(`<td data-col="tacm">${inner}</td>`);
+        return;
+      }
+
+      // --- Gacm ---
+      if(c.key==='gacm'){
+        const url=row.id_gacm;
+        const txt=row.gacm ?? '';
+        const isRed = gacmChecked && (txt >= gacmLimit);
+        const inner=url
+          ? `<a href="${url}" target="_blank" ${isRed ? 'class="em-red"' : ''}>${txt}</a>`
+          : `<span ${isRed ? 'class="em-red"' : ''}>${txt}</span>`;
+        tds.push(`<td data-col="gacm">${inner}</td>`);
+        return;
+      }
+
+      // --- Gacm-P ---
+      if(c.key==='gacm_p'){
+        const url=row.id_gacm;
+        const txt=row.gacm_p ?? '';
+        const isRed = dgacmChecked && (row.dgacm_red === true || (row.dgacm_diff && row.dgacm_diff >= dgacmLimit));
+        const inner=url
+          ? `<a href="${url}" target="_blank" ${isRed ? 'class="em-red"' : ''}>${txt}</a>`
+          : `<span ${isRed ? 'class="em-red"' : ''}>${txt}</span>`;
+        tds.push(`<td data-col="gacm_p">${inner}</td>`);
+        return;
+      }
+
+      // --- ΔGacm ---
+      if(c.key==='dgacm_val'){
+        const txt = row.dgacm_val ?? '';
+        const isRed = dgacmChecked && (row.dgacm_red === true);
+        const inner = `<span ${isRed ? 'class="em-red"' : ''}>${txt}</span>`;
+        tds.push(`<td data-col="dgacm_val">${inner}</td>`);
+        return;
+      }
+
+      // --- G1 min ---
+      if(c.key==='g1'){
+        const url=row.id_g1;
+        const txt=row.g1 ?? '';
+        const isRed = g1Checked && (txt <= g1Limit);
+        const inner=url
+          ? `<a href="${url}" target="_blank" ${isRed ? 'class="em-red"' : ''}>${txt}</a>`
+          : `<span ${isRed ? 'class="em-red"' : ''}>${txt}</span>`;
+        tds.push(`<td data-col="g1">${inner}</td>`);
+        return;
+      }
+
+      // --- ΔG% ---
+      if(c.key==='dg_pct'){
+        const url=row.id_dg_pct;
+        const txt=row.dg_pct ?? '';
+        const isRed = dgpChecked && (txt > dgpLimit);
+        const inner=url
+          ? `<a href="${url}" target="_blank" ${isRed ? 'class="em-red"' : ''}>${txt}</a>`
+          : `<span ${isRed ? 'class="em-red"' : ''}>${txt}</span>`;
+        tds.push(`<td data-col="dg_pct">${inner}</td>`);
+        return;
+      }
+
+      // --- ΔG ---
+      if(c.key==='dg'){
+        const url=row.id_dg;
+        const txt=row.dg ?? '';
+        const isRed = dgChecked && (txt > dgLimit);
+        const inner=url
+          ? `<a href="${url}" target="_blank" ${isRed ? 'class="em-red"' : ''}>${txt}</a>`
+          : `<span ${isRed ? 'class="em-red"' : ''}>${txt}</span>`;
+        tds.push(`<td data-col="dg">${inner}</td>`);
+        return;
+      }
+
+      // --- Gadaos ---
+      if(c.key==='g_adaos'){
+        const url=row.id_g_adaos;
+        const txt=row.g_adaos ?? '';
+        const isRed = gadaosChecked && (txt > gadaosLimit);
+        const inner=url
+          ? `<a href="${url}" target="_blank" ${isRed ? 'class="em-red"' : ''}>${txt}</a>`
+          : `<span ${isRed ? 'class="em-red"' : ''}>${txt}</span>`;
+        tds.push(`<td data-col="g_adaos">${inner}</td>`);
+        return;
+      }
+
+      // --- Data/Ora ---
+      if (c.key === 'time') {
+        const txt = row.time || '';
+
+        let isRed = false;
+        const dataoraEn = document.getElementById('cond_dataora_enabled')?.checked;
+        const dataoraLimit = parseFloat(document.getElementById('cond_dataora_limit')?.value || '0');
+
+        if (dataoraEn && txt) {
+          const dt = new Date(txt.replace(" ", "T"));
+          if (!isNaN(dt.getTime())) {
+            const now = new Date();
+            const diffHours = (now - dt) / 1000 / 3600;
+            if (diffHours >= dataoraLimit) {
+              isRed = true;
             }
+          }
+        }
 
-            return url
-              ? `<a href="${url}" target="_blank"><span class="pump-shape pump-rect" data-pump-id="${row.ptc}_${pompaNum}" style="color:${color};">&#9632;</span></a>`
-              : `<span class="pump-shape pump-rect" data-pump-id="${row.ptc}_${pompaNum}" style="color:${color};">&#9632;</span>`;
-          })
-          .join("")
-      : ""
-  }
-</td>
-<td data-col="time">${row.time}</td>
-`;
-
-          tbody.appendChild(tr);
-        });
-
-        setPumpShapeEvents();
-        updateColumnVisibility();
-
-        // Добавляем количество объектов
-        updatePTCTotal(data.length);
+        const inner = `<span ${isRed ? 'class="em-red"' : ''}>${txt}</span>`;
+        tds.push(`<td data-col="time">${inner}</td>`);
+        return;
       }
 
-      // Функция для TOTAL
-      function updatePTCTotal(count) {
-        document.getElementById("ptc-total").innerHTML =
-          `<b>TOTAL: ${count} obiecte</b>`;
-      }
+      // --- default ---
+      const idKey='id_'+c.key;
+      const url=row[idKey];
+      const val=(row[c.key]??'');
+      tds.push(`<td data-col="${c.key}">${linkOrText(url, val)}</td>`);
+    });
 
-      function setPumpShapeEvents() {
-        document.querySelectorAll(".pump-shape").forEach((el) => {
-          el.oncontextmenu = null;
-        });
+    const tr=document.createElement('tr');
+    tr.innerHTML=tds.join('');
+    tbodyEl.appendChild(tr);
+  });
 
-        document.querySelectorAll(".pump-shape").forEach(function (el) {
-          el.oncontextmenu = function (e) {
+  setPumpShapeEvents();
+  document.getElementById('ptc-total').textContent = `TOTAL: ${data.length} obiecte`;
+}
+
+
+
+
+
+
+
+
+      function setPumpShapeEvents(){
+        const sound=document.getElementById('alarm-audio');
+        document.querySelectorAll('.pump-shape').forEach(el=>{
+          el.oncontextmenu=function(e){
             e.preventDefault();
-            const sound = document.getElementById("alarmSound");
-            // Получаем текущий цвет
-            const color = el.style.color;
-
-            if (el.classList.contains("pump-rect")) {
-              el.classList.remove("pump-rect");
-              el.classList.add("pump-circle");
-              el.innerHTML = "&#9679;";
-
-              // Играет звук только если красный
-              if (color === "red" || color === "rgb(255, 0, 0)") {
-                sound.currentTime = 0;
-                sound.play();
-              }
-            } else {
-              el.classList.remove("pump-circle");
-              el.classList.add("pump-rect");
-              el.innerHTML = "&#9632;";
-              sound.pause();
-              sound.currentTime = 0;
+            const isRect = el.textContent==='■' || el.innerHTML.includes('9632');
+            if(isRect){
+              el.style.borderRadius='50%'; el.innerHTML='&#9679;';
+              const color = getComputedStyle(el).color;
+              if(color==='rgb(255, 0, 0)'){ try{ sound.currentTime=0; sound.play() }catch(_){} }
+            }else{
+              el.style.borderRadius='6px'; el.innerHTML='&#9632;';
+              try{ sound.pause(); sound.currentTime=0 }catch(_){}
             }
             return false;
           };
         });
       }
 
-      document
-        .querySelectorAll('#sidebar input[type="checkbox"]')
-        .forEach((cb) => {
-          cb.addEventListener("change", updateColumnVisibility);
-        });
+      /* ===== Fetch & filter + error handling ===== */
+      const searchInput=document.getElementById('searchInput');
+      const errorBox=document.getElementById('errorBox');
 
-      window.onload = () => {
-        loadData();
-        setInterval(loadData, 30000);
-      };
+      function showError(msg){ errorBox.textContent = msg; errorBox.classList.add('show'); }
+      function hideError(){ errorBox.classList.remove('show'); errorBox.textContent=''; }
 
-      document
-        .getElementById("search-input")
-        .addEventListener("input", function () {
-          const term = this.value.toLowerCase();
-          document.querySelectorAll("#ptc-table tbody tr").forEach((row) => {
-            const ptc = row
-              .querySelector('[data-col="ptc"]')
-              .textContent.toLowerCase();
-            row.style.display = ptc.includes(term) ? "" : "none";
-          });
-        });
+      function buildApiUrl(){
+    const s = encodeURIComponent(getCurrentSeason());
+    const qs = new URLSearchParams({season:s});
 
-      function toggleGroup(header) {
-        const body = header.nextElementSibling;
-        const isCollapsed = body.classList.toggle("collapsed");
-        header.textContent = header.textContent.replace(
-          /[▾▸]/,
-          isCollapsed ? "▸" : "▾",
-        );
+    // === T1min
+    const t1en = document.getElementById('cond_t1min_enabled');
+    const t1v  = document.getElementById('cond_t1min_t1');
+    const g1v  = document.getElementById('cond_t1min_g1');
+
+    if (t1en && t1en.checked) {
+      qs.set('t1min_enabled','1');
+      if (t1v?.value) qs.set('t1min_t1', String(t1v.value));
+      if (g1v?.value) qs.set('t1min_g1', String(g1v.value));
+    }
+
+    // === T4min
+    const t4en = document.getElementById('cond_t4min_enabled');
+    const t4v  = document.getElementById('cond_t4min_t4');
+    if (t4en && t4en.checked) {
+      qs.set('t4min_enabled','1');
+      if (t4v?.value) qs.set('t4min_t4', String(t4v.value));
+    }
+
+    // === ΔT min
+    const dten   = document.getElementById('cond_dtmin_enabled');
+    const dtv    = document.getElementById('cond_dtmin_dt');
+    const t1over = document.getElementById('cond_dtmin_t1_over');
+    if (dten && dten.checked) {
+      qs.set('dtmin_enabled','1');
+      if (dtv?.value) qs.set('dtmin_dt', String(dtv.value));
+      if (t1over?.value) qs.set('dtmin_t1_over', String(t1over.value));
+    }
+
+    // === Tacm
+    const tacmen  = document.getElementById('cond_tacm_enabled');
+    const tacmMin = document.getElementById('cond_tacm_min');
+    const tacmMax = document.getElementById('cond_tacm_max');
+    if (tacmen && tacmen.checked) {
+      qs.set('tacm_enabled','1');
+      if (tacmMin?.value) qs.set('tacm_min', String(tacmMin.value));
+      if (tacmMax?.value) qs.set('tacm_max', String(tacmMax.value));
+    }
+
+    // === Gacm max
+    const gacmen = document.getElementById('cond_gacm_max_enabled');
+    const gacmVal = document.getElementById('cond_gacm_max');
+    if (gacmen && gacmen.checked) {
+      qs.set('gacm_max_enabled','1');
+      if (gacmVal?.value) qs.set('gacm_max', String(gacmVal.value));
+    }
+
+    // === ΔGacm max
+    const dgacmEn = document.getElementById('cond_dgacm_enabled');
+    const dgacmVal = document.getElementById('cond_dgacm_split');
+    if (dgacmEn && dgacmEn.checked) {
+      qs.set('dgacm_enabled','1');
+      if (dgacmVal?.value) qs.set('dgacm_split', String(dgacmVal.value));
+    }
+
+    // === G1 min
+    const g1En = document.getElementById('cond_g1_min_enabled');
+    const g1Val = document.getElementById('cond_g1_min');
+    if (g1En && g1En.checked) {
+      qs.set('g1_min_enabled','1');
+      if (g1Val?.value) qs.set('g1_min', String(g1Val.value));
+    }
+
+    // === ΔG% max
+    const dgpEn = document.getElementById('cond_dgp_enabled');
+    const dgpVal = document.getElementById('cond_dgp_limit');
+    if (dgpEn && dgpEn.checked) {
+      qs.set('dgp_enabled','1');
+      if (dgpVal?.value) qs.set('dgp_limit', String(dgpVal.value));
+    }
+
+    // === ΔG max
+    const dgflowEn = document.getElementById('cond_dg_flow_enabled');
+    const dgflowVal = document.getElementById('cond_dg_flow_limit');
+    if (dgflowEn && dgflowEn.checked) {
+      qs.set('dg_flow_enabled','1');
+      if (dgflowVal?.value) qs.set('dg_flow_limit', String(dgflowVal.value));
+    }
+
+    // === Gadaos max
+    const gadaosEn = document.getElementById('cond_gadaos_enabled');
+    const gadaosVal = document.getElementById('cond_gadaos_limit');
+    if (gadaosEn && gadaosEn.checked) {
+      qs.set('gadaos_enabled','1');
+      if (gadaosVal?.value) qs.set('gadaos_limit', String(gadaosVal.value));
+    }
+
+    // === Ore fără date
+    const dataoraEn = document.getElementById('cond_dataora_enabled');
+    const dataoraVal = document.getElementById('cond_dataora_limit');
+    if (dataoraEn && dataoraEn.checked) {
+      qs.set('dataora_enabled','1');
+      if (dataoraVal?.value) qs.set('dataora_limit', String(dataoraVal.value));
+    }
+
+    qs.set('_', Date.now().toString());
+    return `/api/ptc/?${qs.toString()}`;
+}
+
+
+
+      async function fetchData(){
+        try{
+          const resp=await fetch(buildApiUrl(), {credentials:'same-origin', headers:{'Accept':'application/json'}});
+          if(!resp.ok) throw new Error('HTTP '+resp.status);
+          const data = await resp.json();
+          if(!Array.isArray(data)) throw new Error('Неверный формат ответа (ожидался массив)');
+          hideError();
+          return data;
+        }catch(e){
+          console.error('Ошибка загрузки /api/ptc/:', e);
+          showError('Не удалось получить данные с /api/ptc/: '+e.message+'. Откройте /api/ptc/ в новой вкладке и проверьте ответ.');
+          return null;
+        }
       }
-    </script>
-  </body>
+
+      let allData=[];
+      function applySearch(data){
+        const term=(searchInput.value||'').trim().toLowerCase();
+        if(!term) return data;
+        return data.filter(r=> String(r.ptc||'').toLowerCase().includes(term) || String(r.address||'').toLowerCase().includes(term));
+      }
+
+      async function refresh(){
+        const data=await fetchData();
+        if(data){ allData=data; }
+        buildHeader();
+        renderRows(applySearch(allData));
+      }
+
+      document.getElementById('refreshBtn').onclick=refresh;
+      searchInput.addEventListener('input', ()=> renderRows(applySearch(allData)));
+
+      document.querySelectorAll('#columnsList input[type="checkbox"]').forEach(cb=>{
+        cb.addEventListener('change', ()=>{ saveCheckedToLS(); buildHeader(); renderRows(applySearch(allData)); });
+      });
+
+      function updateConditionsEnabled(){
+          const block = document.getElementById('conditionsBlock');
+          block.classList.remove('is-disabled');
+          block.querySelectorAll('input, select, button').forEach(el => { el.disabled = false; });
+      }
+
+
+      document.querySelectorAll('input[name="season"]').forEach(r=>{
+        r.addEventListener('change', ()=>{
+          const s = getCurrentSeason();
+          try{ localStorage.setItem(LS_SEASON, s); }catch(e){}
+          setColumnsBySeason(s);
+          updateConditionsEnabled();
+          buildHeader();
+          renderRows(applySearch(allData));
+          refresh();
+        });
+      });
+
+      // слушатели: T1, T4, ΔT
+      ['cond_t1min_enabled','cond_t1min_t1','cond_t1min_g1','cond_t4min_enabled','cond_t4min_t4','cond_dtmin_enabled','cond_dtmin_dt','cond_dtmin_t1_over']
+        .forEach(id=>{
+          const el = document.getElementById(id);
+          if(el){
+            el.addEventListener(el.type==='checkbox'?'change':'input', ()=>{ refresh(); });
+          }
+        });
+
+      const seasonRestored = restoreSeason();
+      const hadSaved = restoreCheckedFromLS();
+      if(!hadSaved){ setColumnsBySeason(seasonRestored||'Iarna'); }
+      updateConditionsEnabled();
+
+      buildHeader();
+      refresh();
+      setInterval(refresh, 30000);
+    })();
+</script>
+</body>
 </html>
